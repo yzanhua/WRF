@@ -1,5 +1,48 @@
 !WRF:MEDIATION:IO
 !  ---principal wrf output routine (called from routines in module_io_domain )
+  subroutine ZanhuaLowerCase(MemoryOrder,MemOrd)
+    character*(*) ,intent(in)  :: MemoryOrder
+    character*(*) ,intent(out) :: MemOrd
+    character*1                :: c
+    integer       ,parameter   :: upper_to_lower =IACHAR('a')-IACHAR('A')
+    integer                    :: i,N
+  
+    MemOrd = ' '
+    N = len(MemoryOrder)
+    MemOrd(1:N) = MemoryOrder(1:N)
+    do i=1,N
+      c = MemoryOrder(i:i)
+      if('A'<=c .and. c <='Z') MemOrd(i:i)=achar(iachar(c)+upper_to_lower)
+    enddo
+    return
+  end subroutine ZanhuaLowerCase
+
+  SUBROUTINE ZanhuaGetDim(MemoryOrder,NDim,Status)
+    include 'wrf_status_codes.h'
+    character*(*) ,intent(in)  :: MemoryOrder
+    integer       ,intent(out) :: NDim
+    integer       ,intent(out) :: Status
+    character*3                :: MemOrd
+  
+    call ZanhuaLowerCase(MemoryOrder,MemOrd)
+    select case (MemOrd)
+      case ('xyz','xzy','yxz','yzx','zxy','zyx','xsz','xez','ysz','yez')
+        NDim = 3
+      case ('xy','yx','xs','xe','ys','ye')
+        NDim = 2
+      case ('z','c')
+        NDim = 1
+      case ('0')  ! NDim=0 for scalars.  TBH:  20060502
+        NDim = 0
+      case default
+        print *, 'memory order = ',MemOrd,'  ',MemoryOrder
+        Status = WRF_WARN_BAD_MEMORYORDER
+        return
+    end select
+    Status = WRF_NO_ERR
+    return
+  END SUBROUTINE ZanhuaGetDim
+
   SUBROUTINE output_wrf ( fid , grid , config_flags, switch , ierr )
     USE module_io
     USE module_wrf_error
@@ -101,6 +144,7 @@
     INTEGER :: nio_tasks_per_group
 
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
+    INTEGER :: zanhua_size, zanhua_ndim
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
     CALL wrf_debug( 300 , wrf_err_message )
@@ -1016,6 +1060,36 @@ endif
       p => grid%head_statevars%next
       DO WHILE ( ASSOCIATED( p ) )
         IF ( p%ProcOrient .NE. 'X' .AND. p%ProcOrient .NE. 'Y' ) THEN   ! no I/O for xposed variables
+          ! IF ( .NOT. dryrun ) THEN
+            WRITE(wrf_err_message,*) 'Zanhua, p-dim: ', p%Ndim, ' dryrun ', dryrun
+            CALL wrf_debug( 0 , wrf_err_message )
+            
+            
+            
+            IF (p%Ndim .EQ. 0)  THEN
+              ! TODO: check 0 or 1
+              zanhua_size = 1
+            ELSE
+              memord = p%MemoryOrder
+              CALL ZanhuaGetDim(TRIM(memord), zanhua_ndim, ierr)
+              IF (zanhua_ndim .EQ. 0) THEN
+                zanhua_size = 1
+              ELSE IF (zanhua_ndim .EQ. 1) THEN
+                zanhua_size = (p%ep1 - p%sp1 + 1)
+              ELSE IF (zanhua_ndim .EQ. 2) THEN
+                zanhua_size = (p%ep1 - p%sp1 + 1) * (p%ep2 - p%sp2 + 1) 
+              ELSE IF (zanhua_ndim .EQ. 3) THEN
+                zanhua_size = (p%ep1 - p%sp1 + 1) * (p%ep2 - p%sp2 + 1) * (p%ep3 - p%sp3 + 1)
+              ENDIF
+              ! zanhua_size = (p%ep1 - p%sp1) * (p%ep2 - p%sp2) * (p%ep3 - p%sp3)
+              ! IF (p%ep1 .LE. p%sp1 .OR. p%ep2 .LE. p%sp2 .OR. p%ep3 .LE. p%sp3) THEN
+              !   zanhua_size = 0
+              ! ENDIF
+            ENDIF
+            WRITE(wrf_err_message,*) "**** Zanhua_size: ", zanhua_size
+            CALL wrf_debug( 0 , wrf_err_message )
+          ! ENDIF
+          
           IF ( p%Ndim .EQ. 0 ) THEN
             IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
               IF ( in_use_for_config(grid%id,TRIM(p%VarName)) ) THEN
@@ -1599,3 +1673,4 @@ endif
     RETURN
   END SUBROUTINE traverse_statevars_debug
 
+  

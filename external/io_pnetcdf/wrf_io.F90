@@ -2381,6 +2381,16 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
   Length(1:NDim) = PatchEnd(1:NDim)-PatchStart(1:NDim)+1
   Length_native(1:NDim) = Length(1:NDim)
   Length_global(1:NDim) = DomainEnd(1:NDim)-DomainStart(1:NDim)+1
+  write(msg,*) 'zanhua: ------------------', NDim
+  CALL wrf_debug( 0, msg )
+
+  do i = 1, NDim
+    write(msg, *) Length_native(i), Length_global(i)
+    CALL wrf_debug( 0, msg )
+  end do
+
+  write(msg,*) 'zanhua: ------------------'
+  CALL wrf_debug( 0, msg )
 
   call ExtOrder(MemoryOrder,Length,Status)
   call ExtOrder(MemoryOrder,Length_global,Status)
@@ -2574,12 +2584,14 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
       return
     endif
 
-#if 0
+#if 1
     WRITE(msg,*) 'ARPDBG: MemoryStart = ',lMemoryStart(1:NDim)
     CALL wrf_message(msg)
     WRITE(msg,*) 'ARPDBG:  lMemoryEnd = ',lMemoryEnd(1:NDim)
     CALL wrf_message(msg)
-    WRITE(msg,*) 'ARPDBG:      Length = ',Length(1:NDim)
+    WRITE(msg,*) 'ARPDBG:      Length = ',Length(1:NDim), ',', NDim
+    CALL wrf_message(msg)
+    WRITE(msg,*) 'ARPDBG:      Length all = ',Length(1:4)
     CALL wrf_message(msg)
 #endif
 

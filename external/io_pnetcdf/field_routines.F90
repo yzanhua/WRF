@@ -55,8 +55,12 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
 
   if(IO == 'write') then
     if(Coll)then
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL_ALL line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4)
+      call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL line', __LINE__, VarID, NVarDims
+      call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     end if
   else

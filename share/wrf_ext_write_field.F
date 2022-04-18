@@ -167,6 +167,9 @@
 #endif
     Status = 0
 
+    write(wrf_err_message,*) 'Zanhua: wrf_write_field before dryrun'
+    call wrf_debug ( 0 , wrf_err_message)
+
     CALL wrf_write_field (   &
                        DataHandle                 &  ! DataHandle
                       ,DateStr                    &  ! DateStr
@@ -193,7 +196,9 @@
                           use_package(io_form) .EQ. IO_PIO    .OR. &
                           use_package(io_form) .EQ. IO_PNETCDF ) ) .OR. &
                         ( use_package(io_form) .EQ. IO_PHDF5  )   ) THEN
-
+      
+      write(wrf_err_message,*) 'Zanhua: dryrun', __LINE__
+      call wrf_debug ( 0 , wrf_err_message)                     
       CALL wrf_put_var_ti_char( &
                        DataHandle                 &  ! DataHandle
                       ,"description"              &  ! Element
@@ -294,7 +299,7 @@
 #endif
     ENDIF
 
-    IF ( wrf_at_debug_level(300) ) THEN
+    IF ( wrf_at_debug_level(0) ) THEN
       WRITE(wrf_err_message,*) debug_message,' Status = ',Status
       CALL wrf_message ( TRIM(wrf_err_message) )
     ENDIF
@@ -304,3 +309,29 @@
     ENDIF
 
   END SUBROUTINE wrf_ext_write_field
+
+  ! SUBROUTINE ZanhuaGetDim(MemoryOrder,NDim,Status)
+  !   include 'wrf_status_codes.h'
+  !   character*(*) ,intent(in)  :: MemoryOrder
+  !   integer       ,intent(out) :: NDim
+  !   integer       ,intent(out) :: Status
+  !   character*3                :: MemOrd
+  
+  !   call LowerCase(MemoryOrder,MemOrd)
+  !   select case (MemOrd)
+  !     case ('xyz','xzy','yxz','yzx','zxy','zyx','xsz','xez','ysz','yez')
+  !       NDim = 3
+  !     case ('xy','yx','xs','xe','ys','ye')
+  !       NDim = 2
+  !     case ('z','c')
+  !       NDim = 1
+  !     case ('0')  ! NDim=0 for scalars.  TBH:  20060502
+  !       NDim = 0
+  !     case default
+  !       print *, 'memory order = ',MemOrd,'  ',MemoryOrder
+  !       Status = WRF_WARN_BAD_MEMORYORDER
+  !       return
+  !   end select
+  !   Status = WRF_NO_ERR
+  !   return
+  ! END SUBROUTINE ZanhuaGetDim
