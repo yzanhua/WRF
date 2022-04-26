@@ -133,6 +133,9 @@
     INTEGER, EXTERNAL :: use_package
     INTEGER Hndl
 
+    write(wrf_err_message,*) 'Zanhua: entered wrf_ext_write_field'
+    call wrf_debug ( 0 , wrf_err_message)
+
     IF ( wrf_at_debug_level( 500 ) ) THEN
       call start_timing
     ENDIF

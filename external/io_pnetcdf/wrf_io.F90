@@ -2351,6 +2351,9 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
   logical                                      :: quilting
   ! Local, possibly adjusted, copies of MemoryStart and MemoryEnd
   integer       ,dimension(NVarDims)           :: lMemoryStart, lMemoryEnd
+  WRITE(msg,*) 'Zanhua: inside ext_pnc_write_field: start'
+  CALL wrf_message(msg)
+
   MemoryOrder = trim(adjustl(MemoryOrdIn))
   NullName=char(0)
   call GetDim(MemoryOrder,NDim,Status)

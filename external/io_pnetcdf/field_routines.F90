@@ -50,16 +50,19 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   integer                                    :: stat
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
+  real :: temp_real
+
   VStart_mpi = VStart
   VCount_mpi = VCount
+  
 
   if(IO == 'write') then
     if(Coll)then
-      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL_ALL line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4)
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL_ALL line', __LINE__, VarID, NVarDims, ' True Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(temp_real)
       call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
-      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL line', __LINE__, VarID, NVarDims
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(temp_real)
       call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     end if
@@ -95,13 +98,19 @@ subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   integer                                    :: stat
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
+  real*8 temp_double
   VStart_mpi = VStart
   VCount_mpi = VCount
+  
 
   if(IO == 'write') then
     if(Coll)then
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_DOUBLE_ALL line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(temp_double)
+      call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
    else
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_DOUBLE line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4)* sizeof(temp_double)
+      call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data)
    endif
   else
@@ -141,8 +150,13 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
 
   if(IO == 'write') then
     if(Coll)then
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_INT_ALL line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(NCID)
+      call wrf_debug ( 0 , msg)
+      
       stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_INT line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(NCID)
+      call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     endif
   else
@@ -202,14 +216,20 @@ subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
       enddo
     enddo
     if(Coll)then
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_INT_ALL (LOGICAL) line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(NCID)
+      call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
    else
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_INT (LOGICAL) line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(NCID)
+      call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
    end if
   else
     if(Coll)then
+      
       stat = NFMPI_GET_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
     else
+     
       stat = NFMPI_GET_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
     end if
     Data = Buffer == 1

@@ -43,6 +43,52 @@
     return
   END SUBROUTINE ZanhuaGetDim
 
+  SUBROUTINE ZanhuaGetSize(MemoryOrder, Size, ep1, ep2, ep3, sp1, sp2, sp3)
+    
+    character*(*) ,intent(in)  :: MemoryOrder
+    integer, intent(out) :: Size
+    integer, intent(in) :: ep1, ep2, ep3, sp1, sp2, sp3
+    INTEGER :: ndim, ierr
+    ! CHARACTER*80 memord
+    ! memord = MemoryOrder
+
+    CALL ZanhuaGetDim(TRIM(MemoryOrder), ndim, ierr)
+
+    Size = 0
+    IF (ndim .EQ. 0) THEN    
+      Size = 1
+    ELSE IF (ndim .EQ. 1) THEN
+      if (ep1 - sp1 > 0) &
+      Size = (ep1 - sp1 + 1)
+    ELSE IF (ndim .EQ. 2) THEN
+      if (ep1 - sp1 > 0 .AND. ep2 - sp2 > 0) &
+      Size = (ep1 - sp1 + 1) * (ep2 - sp2 + 1) 
+    ELSE IF (ndim .EQ. 3) THEN
+      if (ep1 - sp1 > 0 .AND. ep2 - sp2 > 0 .AND. ep3 - sp3 > 0) &
+      Size = (ep1 - sp1 + 1) * (ep2 - sp2 + 1) * (ep3 - sp3 + 1)
+    ENDIF
+    return
+  END SUBROUTINE ZanhuaGetSize
+
+  SUBROUTINE ZanhuaGetSizeOfType(Type, Size)
+    CHARACTER*1, intent(in) :: Type
+    INTEGER, intent(out) :: Size
+    ! LOGICAL :: temp_logical
+    REAL :: temp_real
+    REAL*8 :: temp_double
+    Size = 1
+    IF (Type .EQ. 'r') THEN
+      Size = SIZEOF(temp_real)
+    ELSE IF (Type .EQ. 'd') THEN
+      Size = SIZEOF(temp_double)
+    ELSE IF (Type .EQ. 'i') THEN
+      Size = SIZEOF(Size)
+    ELSE IF (Type .EQ. 'l') THEN
+      Size = SIZEOF(Size)
+    ENDIF
+  RETURN
+  END SUBROUTINE ZanhuaGetSizeOfType
+
   SUBROUTINE output_wrf ( fid , grid , config_flags, switch , ierr )
     USE module_io
     USE module_wrf_error
@@ -144,7 +190,7 @@
     INTEGER :: nio_tasks_per_group
 
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
-    INTEGER :: zanhua_size, zanhua_ndim
+    INTEGER :: zanhua_grid_size, zanhua_ndim, zanhua_total_size, zanhua_type_size, zanhua_num_calls
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
     CALL wrf_debug( 300 , wrf_err_message )
@@ -1057,7 +1103,122 @@ endif
          (first_history .LE. switch .AND. switch .LE. last_history ) .OR. &
           switch .EQ. restart_only    ) THEN
       newswitch = switch
+      
+      ! calculate total size - by Zanhua
+      zanhua_total_size = 0
+      zanhua_num_calls = 0
+      IF (.NOT.dryrun) THEN
+        p => grid%head_statevars%next
+        DO WHILE ( ASSOCIATED( p ) )
+          IF ( p%ProcOrient .NE. 'X' .AND. p%ProcOrient .NE. 'Y' ) THEN
+            zanhua_grid_size = 0
+            IF (p%Ndim .EQ. 0)  THEN
+              ! TODO: check 0 or 1
+              IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
+                IF ( in_use_for_config(grid%id,TRIM(p%VarName)) ) THEN
+                  zanhua_grid_size = 1
+                  zanhua_num_calls = zanhua_num_calls + 1
+                  
+                  ! helper; print info
+                  zanhua_type_size = 4
+                  CALL ZanhuaGetSizeOfType(p%Type, zanhua_type_size)
+                  WRITE(wrf_err_message,*) "**** zanhua_size_of_each_call ", zanhua_grid_size * zanhua_type_size
+                  CALL wrf_debug( 0 , wrf_err_message )
+                  zanhua_total_size = zanhua_total_size + zanhua_grid_size * zanhua_type_size
+                  ! CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+                ENDIF
+              ENDIF
+            ELSE IF (p%Ndim .EQ. 1) THEN
+              IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
+                IF ( in_use_for_config(grid%id,TRIM(p%VarName)) ) THEN
+                  IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+                    zanhua_num_calls = zanhua_num_calls + 1
+                    CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+
+                    ! helper; print info
+                    zanhua_type_size = 4
+                    CALL ZanhuaGetSizeOfType(p%Type, zanhua_type_size)
+                    WRITE(wrf_err_message,*) "**** zanhua_size_of_each_call ", zanhua_grid_size * zanhua_type_size
+                    CALL wrf_debug( 0 , wrf_err_message )
+                    zanhua_total_size = zanhua_total_size + zanhua_grid_size * zanhua_type_size
+                  ENDIF
+                ENDIF
+              ENDIF
+            ELSE IF (p%Ndim .EQ. 2) THEN
+              IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
+                IF ( in_use_for_config(grid%id,TRIM(p%VarName)) .AND.  &
+                   ( .NOT. p%subgrid_x .OR. (p%subgrid_x .AND. grid%sr_x .GT. 0) ) .AND. &
+                   ( .NOT. p%subgrid_y .OR. (p%subgrid_y .AND. grid%sr_y .GT. 0) )       &
+                 ) THEN
+                  IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+                    zanhua_num_calls = zanhua_num_calls + 1
+                    CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+
+                    ! helper; print info
+                    zanhua_type_size = 4
+                    CALL ZanhuaGetSizeOfType(p%Type, zanhua_type_size)
+                    WRITE(wrf_err_message,*) "**** zanhua_size_of_each_call ", zanhua_grid_size * zanhua_type_size
+                    CALL wrf_debug( 0 , wrf_err_message )
+                    zanhua_total_size = zanhua_total_size + zanhua_grid_size * zanhua_type_size
+
+                  ENDIF
+                ENDIF
+              ENDIF
+            ELSE IF (p%Ndim .EQ. 3) THEN
+              IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
+                IF ( in_use_for_config(grid%id,TRIM(p%VarName)) .AND.  &
+                   ( .NOT. p%subgrid_x .OR. (p%subgrid_x .AND. grid%sr_x .GT. 0) ) .AND. &
+                   ( .NOT. p%subgrid_y .OR. (p%subgrid_y .AND. grid%sr_y .GT. 0) )       &
+                 ) THEN
+                  IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+                    zanhua_num_calls = zanhua_num_calls + 1
+                    CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+
+                    ! helper; print info
+                    zanhua_type_size = 4
+                    CALL ZanhuaGetSizeOfType(p%Type, zanhua_type_size)
+                    WRITE(wrf_err_message,*) "**** zanhua_size_of_each_call ", zanhua_grid_size * zanhua_type_size
+                    CALL wrf_debug( 0 , wrf_err_message )
+                    zanhua_total_size = zanhua_total_size + zanhua_grid_size * zanhua_type_size
+                  ENDIF
+                ENDIF
+              ENDIF
+            ELSE IF (p%Ndim .EQ. 4 .AND. p%scalar_array ) THEN
+              IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+                DO itrace = PARAM_FIRST_SCALAR , p%num_table(grid%id)
+                  IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams_table(grid%id,itrace)%stream,newswitch)) THEN
+                    zanhua_num_calls = zanhua_num_calls + 1
+                    CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+
+                    ! helper; print info
+                    zanhua_type_size = 4
+                    CALL ZanhuaGetSizeOfType(p%Type, zanhua_type_size)
+                    WRITE(wrf_err_message,*) "**** zanhua_size_of_each_call ", zanhua_grid_size * zanhua_type_size
+                    CALL wrf_debug( 0 , wrf_err_message )
+                    zanhua_total_size = zanhua_total_size + zanhua_grid_size * zanhua_type_size
+                  ENDIF
+                ENDDO
+                
+              ENDIF
+            ENDIF
+            ! zanhua_type_size = 4
+            ! CALL ZanhuaGetSizeOfType(p%Type, zanhua_type_size)
+            ! WRITE(wrf_err_message,*) "**** zanhua_size_of_each_call ", zanhua_grid_size * zanhua_type_size
+            ! CALL wrf_debug( 0 , wrf_err_message )
+            
+            ! zanhua_total_size = zanhua_total_size + zanhua_grid_size * zanhua_type_size
+          ENDIF
+          p => p%next
+        ENDDO
+      ENDIF
+      WRITE(wrf_err_message,*) "**** zanhua_total_size: ", zanhua_total_size, " num calls: ", zanhua_num_calls
+      CALL wrf_debug( 0 , wrf_err_message )
+    
       p => grid%head_statevars%next
+      
+      WRITE(wrf_err_message,*) '===============\nZanhua, ASOCCIATED called once'
+      CALL wrf_debug( 0 , wrf_err_message )
+
       DO WHILE ( ASSOCIATED( p ) )
         IF ( p%ProcOrient .NE. 'X' .AND. p%ProcOrient .NE. 'Y' ) THEN   ! no I/O for xposed variables
           ! IF ( .NOT. dryrun ) THEN
@@ -1065,29 +1226,52 @@ endif
             CALL wrf_debug( 0 , wrf_err_message )
             
             
-            
-            IF (p%Ndim .EQ. 0)  THEN
-              ! TODO: check 0 or 1
-              zanhua_size = 1
-            ELSE
-              memord = p%MemoryOrder
-              CALL ZanhuaGetDim(TRIM(memord), zanhua_ndim, ierr)
-              IF (zanhua_ndim .EQ. 0) THEN
-                zanhua_size = 1
-              ELSE IF (zanhua_ndim .EQ. 1) THEN
-                zanhua_size = (p%ep1 - p%sp1 + 1)
-              ELSE IF (zanhua_ndim .EQ. 2) THEN
-                zanhua_size = (p%ep1 - p%sp1 + 1) * (p%ep2 - p%sp2 + 1) 
-              ELSE IF (zanhua_ndim .EQ. 3) THEN
-                zanhua_size = (p%ep1 - p%sp1 + 1) * (p%ep2 - p%sp2 + 1) * (p%ep3 - p%sp3 + 1)
-              ENDIF
-              ! zanhua_size = (p%ep1 - p%sp1) * (p%ep2 - p%sp2) * (p%ep3 - p%sp3)
-              ! IF (p%ep1 .LE. p%sp1 .OR. p%ep2 .LE. p%sp2 .OR. p%ep3 .LE. p%sp3) THEN
-              !   zanhua_size = 0
-              ! ENDIF
-            ENDIF
-            WRITE(wrf_err_message,*) "**** Zanhua_size: ", zanhua_size
-            CALL wrf_debug( 0 , wrf_err_message )
+            ! zanhua_grid_size = 0
+            ! IF (p%Ndim .EQ. 0)  THEN
+            !   ! TODO: check 0 or 1
+            !   IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
+            !     IF ( in_use_for_config(grid%id,TRIM(p%VarName)) ) THEN
+            !       zanhua_grid_size = 1
+            !       ! CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+            !     ENDIF
+            !   ENDIF
+            ! ELSE IF (p%Ndim .EQ. 1) THEN
+            !   IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
+            !     IF ( in_use_for_config(grid%id,TRIM(p%VarName)) ) THEN
+            !       IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+            !         CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+            !       ENDIF
+            !     ENDIF
+            !   ENDIF
+            ! ELSE IF (p%Ndim .EQ. 2) THEN
+            !   IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
+            !     IF ( in_use_for_config(grid%id,TRIM(p%VarName)) .AND.  &
+            !        ( .NOT. p%subgrid_x .OR. (p%subgrid_x .AND. grid%sr_x .GT. 0) ) .AND. &
+            !        ( .NOT. p%subgrid_y .OR. (p%subgrid_y .AND. grid%sr_y .GT. 0) )       &
+            !      ) THEN
+            !       IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+            !         CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+            !       ENDIF
+            !     ENDIF
+            !   ENDIF
+            ! ELSE IF (p%Ndim .EQ. 3) THEN
+            !   IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newswitch)) THEN
+            !     IF ( in_use_for_config(grid%id,TRIM(p%VarName)) .AND.  &
+            !        ( .NOT. p%subgrid_x .OR. (p%subgrid_x .AND. grid%sr_x .GT. 0) ) .AND. &
+            !        ( .NOT. p%subgrid_y .OR. (p%subgrid_y .AND. grid%sr_y .GT. 0) )       &
+            !      ) THEN
+            !       IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+            !         CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+            !       ENDIF
+            !     ENDIF
+            !   ENDIF
+            ! ELSE IF (p%Ndim .EQ. 4 .AND. p%scalar_array ) THEN
+            !   IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+            !     CALL ZanhuaGetSize(p%MemoryOrder, zanhua_grid_size, p%ep1, p%ep2, p%ep3, p%sp1, p%sp2, p%sp3)
+            !   ENDIF
+            ! ENDIF
+            ! WRITE(wrf_err_message,*) "**** zanhua_grid_size: ", zanhua_grid_size
+            ! CALL wrf_debug( 0 , wrf_err_message )
           ! ENDIF
           
           IF ( p%Ndim .EQ. 0 ) THEN
