@@ -18,7 +18,8 @@ MODULES1=                               \
         module_interp_nmm.o             \
         module_interp_store.o           \
         module_string_tools.o           \
-        module_MPP.o 
+        module_MPP.o \
+        bput_globals.o
 
 MODULES2=                               \
         module_date_time.o              \
@@ -99,6 +100,9 @@ nmm_contrib : $(NMM_OBJS) $(NMM_MODULES)
 
 #module_io_domain_defs.inc : module_io_domain_defs.m4
 #	$(M4) module_io_domain_defs.m4 > module_io_domain_defs.inc
+
+bput_globals.o:	bput_globals.F90
+			$(FC) $(FFLAGS) -I../inc -I../frame -c bput_globals.F90
 
 clean:
 	@ echo 'use the clean script'
