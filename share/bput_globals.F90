@@ -8,10 +8,20 @@
       integer, allocatable :: reqs_(:)
       integer :: num_reqs_
       integer :: i_
-      integer :: allocated_
+      ! integer :: allocated_
+      integer :: use_bput_
       contains
 
-      subroutine BputInitGlobals(num_reqs)
+      subroutine BputSetUse(use_bput)
+        integer, intent(in) :: use_bput
+        use_bput_ = use_bput
+      end subroutine BputSetUse
+
+      subroutine BputGetUse(use_bput_out)
+        integer, intent(out) :: use_bput_out
+      end subroutine BputGetUse
+
+      subroutine BputSetNumReqs(num_reqs)
           ! init reqs_ to have size num_reqs; possibly all -1?
           integer, intent(in) :: num_reqs
           
@@ -20,7 +30,14 @@
 
           num_reqs_ = num_reqs
           i_ = 1
-      end subroutine BputInitGlobals
+      end subroutine BputSetNumReqs
+
+      subroutine BputCleanGlobals()
+        if (allocated(reqs_)) deallocate(reqs_)
+        num_reqs_ = 0
+        i_ = 1
+      end subroutine BputCleanGlobals
+
 
       subroutine BputSetNextReqVal(req_val)
           integer, intent(in) :: req_val
@@ -40,17 +57,29 @@
           num_reqs = num_reqs_
       end subroutine BputGetNumOfReqs
 
-      subroutine BputGetReqVal(req_idx, req_val)
-          integer, intent(in) :: req_idx
-          integer, intent(out) :: req_val
+      ! subroutine BputGetReqVal(req_idx, req_val)
+      !     integer, intent(in) :: req_idx
+      !     integer, intent(out) :: req_val
 
-          if (req_idx .LE. num_reqs_) then
-              req_val = reqs_(req_idx)
-          else
-              ! error?
-              req_val = -1
-          endif
-      end subroutine BputGetReqVal
+      !     if (req_idx .LE. num_reqs_ .AND. req_idx .GE. 1) then
+      !         req_val = reqs_(req_idx)
+      !     else
+      !         ! error?
+      !         req_val = -1
+      !     endif
+      ! end subroutine BputGetReqVal
+
+      subroutine BputGetAllReqs(all_reqs)
+        integer, intent(inout), allocatable :: all_reqs(:)
+        integer :: i
+        if (allocated(all_reqs)) deallocate(all_reqs)
+        allocate(all_reqs(num_reqs_))
+
+        do i = 1 , num_reqs_
+          all_reqs(i) = reqs_(i)
+        enddo
+
+    end subroutine BputGetAllReqs
 
       subroutine BputLowerCase(MemoryOrder,MemOrd)
           character*(*) ,intent(in)  :: MemoryOrder
