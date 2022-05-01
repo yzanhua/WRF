@@ -12,7 +12,7 @@
 !    USE module_date_time
     USE module_model_constants
     USE module_utility
-    USE bput_globals
+    USE bput_globals ! located at ../share/bput_globals.F90
     IMPLICIT NONE
 #include "wrf_io_flags.h"
 #include "wrf_status_codes.h"
@@ -103,7 +103,7 @@
     INTEGER :: nio_tasks_per_group
 
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
-    INTEGER :: bput_buffer_size
+    INTEGER :: bput_buffer_size, bput_num_calls
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
     CALL wrf_debug( 300 , wrf_err_message )
@@ -1019,11 +1019,12 @@ endif
       
       ! calculate total size - by Zanhua
       bput_buffer_size = 0
+      bput_num_calls = 0
       IF (.NOT.dryrun) THEN
         p => grid%head_statevars%next
-        CALL BputGetBufferSize(p, switch, grid, bput_buffer_size)
+        CALL BputGetBufferSizeAndNumCalls(p, switch, grid, bput_buffer_size, bput_num_calls)
       ENDIF
-      WRITE(wrf_err_message,*) "**** zanhua_total_size: ", bput_buffer_size !, " num calls: ", zanhua_num_calls
+      WRITE(wrf_err_message,*) "**** zanhua_total_size: ", bput_buffer_size, " num calls: ", bput_num_calls
       CALL wrf_debug( 0 , wrf_err_message )
     
       p => grid%head_statevars%next
