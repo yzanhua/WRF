@@ -9,8 +9,34 @@
       integer :: num_reqs_
       integer :: i_
       ! integer :: allocated_
-      integer :: use_bput_
+      integer :: use_bput_  ! 1 use bput; 0 do not use bput
       contains
+
+      subroutine BputAttach(fid, bput_buffer_size, err)
+        use pnetcdf
+        integer, intent(in) :: fid
+        integer*8, intent(in) :: bput_buffer_size
+        integer, intent(out):: err
+        err = nfmpi_buffer_attach(fid, bput_buffer_size)
+      end subroutine BputAttach
+
+      subroutine BputDetach(fid)
+        use pnetcdf
+        integer, intent(in) :: fid
+        integer:: err
+        err = nfmpi_buffer_detach(fid)
+      end subroutine BputDetach
+
+      subroutine BputWaitAll(ncid)
+        use pnetcdf
+        integer, intent(in) :: ncid
+        integer, allocatable :: st(:)
+        integer :: err
+        allocate(st(num_reqs_))
+        err = nf90mpi_wait_all(ncid, num_reqs_, reqs_, st)
+        deallocate(st)
+      end subroutine BputWaitAll
+
 
       subroutine BputSetUse(use_bput)
         integer, intent(in) :: use_bput
@@ -19,6 +45,7 @@
 
       subroutine BputGetUse(use_bput_out)
         integer, intent(out) :: use_bput_out
+        use_bput_out = use_bput_
       end subroutine BputGetUse
 
       subroutine BputSetNumReqs(num_reqs)
@@ -36,6 +63,7 @@
         if (allocated(reqs_)) deallocate(reqs_)
         num_reqs_ = 0
         i_ = 1
+        use_bput_ = 0
       end subroutine BputCleanGlobals
 
 
@@ -180,7 +208,7 @@
           TYPE(domain), intent(in) :: grid
 
           ! output
-          integer, intent(out):: totalSizeOut
+          integer*8, intent(out):: totalSizeOut
           integer, intent(out):: numCallsOut
 
           integer :: gridSize, typeSize
@@ -279,5 +307,25 @@
           ENDDO
         
       end subroutine BputGetBufferSizeAndNumCalls
+
+      subroutine BputGetNCID(DataHandle,NcidOut)
+        use wrf_data_pnc
+        include 'wrf_status_codes.h'
+        integer               ,intent(in)     :: DataHandle
+        type(wrf_data_handle) ,pointer        :: DH
+        integer, intent(out) :: NcidOut
+      
+        if(DataHandle < 1 .or. DataHandle > WrfDataHandleMax) then
+          NcidOut = -1
+          return
+        endif
+        DH => WrfDataHandles(DataHandle)
+        if(DH%Free) then
+          NcidOut = -1
+          return
+        endif
+        NcidOut = DH%NCID
+        return
+      end subroutine BputGetNCID
 
   end module

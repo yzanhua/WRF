@@ -13,6 +13,7 @@
     USE module_model_constants
     USE module_utility
     USE bput_globals ! located at ../share/bput_globals.F90
+    
     IMPLICIT NONE
 #include "wrf_io_flags.h"
 #include "wrf_status_codes.h"
@@ -103,7 +104,8 @@
     INTEGER :: nio_tasks_per_group
 
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
-    INTEGER :: bput_buffer_size, bput_num_calls
+    INTEGER :: bput_num_calls, bput_use, bput_ncid
+    INTEGER*8 :: bput_buffer_size
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
     CALL wrf_debug( 300 , wrf_err_message )
@@ -1018,15 +1020,32 @@ endif
       newswitch = switch
       
       ! calculate total size - by Zanhua
+      
       bput_buffer_size = 0
       bput_num_calls = 0
-      IF (.NOT.dryrun) THEN
+      bput_use = 0
+      IF (bput_use > 0 .AND. .NOT.dryrun) then
+        call BputSetUse(bput_use)
         p => grid%head_statevars%next
         CALL BputGetBufferSizeAndNumCalls(p, switch, grid, bput_buffer_size, bput_num_calls)
       ENDIF
+      
+      call BputGetUse(bput_use)
+      
+    
+      CALL wrf_debug( 0 , wrf_err_message )
+
       WRITE(wrf_err_message,*) "**** zanhua_total_size: ", bput_buffer_size, " num calls: ", bput_num_calls
       CALL wrf_debug( 0 , wrf_err_message )
-    
+
+      IF (bput_use > 0) THEN
+        call BputGetNCID(fid, bput_ncid)
+        call BputSetNumReqs(bput_num_calls)
+        call BputAttach(bput_ncid, bput_buffer_size, bput_num_calls)
+       
+        
+      ENDIF
+          
       p => grid%head_statevars%next
       
       DO WHILE ( ASSOCIATED( p ) )
@@ -1546,6 +1565,12 @@ endif
          CALL wrf_debug ( 300 , 'output_wrf: calling code in wrf_bdyout.inc' )
          CALL wrf_bdyout( fid , grid , config_flags, switch, dryrun,  ierr )
        ENDIF
+    ENDIF
+
+    IF (bput_use > 0) THEN
+      call BputWaitAll(bput_ncid)
+      call BputDetach(bput_ncid)
+      call BputCleanGlobals()
     ENDIF
 
     IF ( switch .EQ. history_only ) THEN

@@ -33,9 +33,23 @@
 !*  Date:    October 6, 2000
 !*
 !*----------------------------------------------------------------------------
+subroutine check(err)
+  use mpi
+  use pnetcdf
+  implicit none
+  integer err
+
+  ! It is a good idea to check returned value for possible error
+  if (err .NE. NF90_NOERR) then 
+      call MPI_Abort(MPI_COMM_WORLD, -1, err)
+  end if
+end subroutine check
+
 subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   use wrf_data_pnc
   use ext_pnc_support_routines
+  use bput_globals
+
   implicit none
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
@@ -51,18 +65,42 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
   real :: temp_real
+  integer :: use_bput, bput_req
 
   VStart_mpi = VStart
   VCount_mpi = VCount
-  
+
+
+  use_bput = 0
+  bput_req = 0
+  call BputGetUse(use_bput)
+  write(msg,*) 'Zanhua: RealFieldIO use bput', use_bput
+  call wrf_debug ( 0 , msg)
+
 
   if(IO == 'write') then
     if(Coll)then
-      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL_ALL line', __LINE__, VarID, NVarDims, ' True Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(temp_real)
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL_ALL ncid', NCID, VarID, NVarDims, ' True Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(temp_real)
       call wrf_debug ( 0 , msg)
-      stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      
+      if (use_bput > 0) then
+        ! err = nfmpi_bput_vara_real(NCID, VarID, Data, bput_req, VStart_mpi, VCount_mpi)
+        stat = nfmpi_bput_vara_real(NCID, VarID, VStart_mpi, VCount_mpi, Data, bput_req)
+        ! nf90mpi_strerror
+        if (stat < 0) then
+          write(msg,*) 'Zanhua: bput line', __LINE__, trim(nfmpi_strerror(stat))
+          call wrf_debug ( 0 , msg)
+        endif
+        
+        call check(stat)
+        
+        call BputSetNextReqVal(bput_req)
+       
+      else
+        stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      end if
     else
-      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(temp_real)
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_REAL ncid', NCID, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(temp_real)
       call wrf_debug ( 0 , msg)
       stat = NFMPI_PUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     end if
@@ -131,6 +169,7 @@ end subroutine ext_pnc_DoubleFieldIO
 subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   use wrf_data_pnc
   use ext_pnc_support_routines
+  use bput_globals
   implicit none
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
@@ -145,15 +184,35 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   integer                                    :: stat
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
+  integer :: use_bput, bput_req
+  
   VStart_mpi = VStart
   VCount_mpi = VCount
 
+  
+  use_bput = 0
+  bput_req = 0
+  call BputGetUse(use_bput)
+  write(msg,*) 'Zanhua: IntFieldIO use bput', use_bput
+  call wrf_debug ( 0 , msg)
+
   if(IO == 'write') then
     if(Coll)then
-      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_INT_ALL line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(NCID)
+      write(msg,*) 'Zanhua: NFMPI_PUT_VARA_INT_ALL line', NCID, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(NCID)
       call wrf_debug ( 0 , msg)
-      
-      stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+
+      if (use_bput > 0) then
+        ! err = nfmpi_bput_vara_int(NCID, VarID, Data, bput_req, VStart_mpi, VCount_mpi)
+        stat = nfmpi_bput_vara_int(NCID, VarID, VStart_mpi, VCount_mpi, Data, bput_req)
+        if (stat < 0) then
+          write(msg,*) 'Zanhua: bput line', __LINE__, trim(nfmpi_strerror(stat))
+          call wrf_debug ( 0 , msg)
+        endif
+        call check(stat)
+        call BputSetNextReqVal(bput_req)
+      else
+        stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      endif
     else
       write(msg,*) 'Zanhua: NFMPI_PUT_VARA_INT line', __LINE__, VarID, NVarDims, ' Size is ', VCount_mpi(1) * VCount_mpi(2) * VCount_mpi(3) * VCount_mpi(4) * sizeof(NCID)
       call wrf_debug ( 0 , msg)
