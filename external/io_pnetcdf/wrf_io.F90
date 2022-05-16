@@ -2576,7 +2576,7 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
       return
     endif
 
-#if 1
+#if 0
     WRITE(msg,*) 'ARPDBG: MemoryStart = ',lMemoryStart(1:NDim)
     CALL wrf_message(msg)
     WRITE(msg,*) 'ARPDBG:  lMemoryEnd = ',lMemoryEnd(1:NDim)

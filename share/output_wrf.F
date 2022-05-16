@@ -1019,31 +1019,20 @@ endif
           switch .EQ. restart_only    ) THEN
       newswitch = switch
       
-      ! calculate total size - by Zanhua
-      
       bput_buffer_size = 0
       bput_num_calls = 0
-      bput_use = 1
+      bput_use = 0
+      call BputSetUse(0)
       IF (bput_use > 0 .AND. .NOT.dryrun) then
         call BputSetUse(bput_use)
         p => grid%head_statevars%next
         CALL BputGetBufferSizeAndNumCalls(p, switch, grid, bput_buffer_size, bput_num_calls)
       ENDIF
-      
       call BputGetUse(bput_use)
-      
-    
-      CALL wrf_debug( 0 , wrf_err_message )
-
-      WRITE(wrf_err_message,*) "**** zanhua_total_size: ", bput_buffer_size, " num calls: ", bput_num_calls
-      CALL wrf_debug( 0 , wrf_err_message )
-
       IF (bput_use > 0) THEN
         call BputGetNCID(fid, bput_ncid)
         call BputSetNumReqs(bput_num_calls)
         call BputAttach(bput_ncid, bput_buffer_size, bput_num_calls)
-       
-        
       ENDIF
           
       p => grid%head_statevars%next

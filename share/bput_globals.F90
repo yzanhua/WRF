@@ -202,7 +202,7 @@
           USE module_domain_type, ONLY : fieldlist
           USE module_domain
           USE module_io
-          USE module_wrf_error ! This is only used for debug purposes
+          ! USE module_wrf_error ! This is only used for debug purposes
 
           ! input
           TYPE(fieldlist), intent(in), POINTER :: fieldListPtr
@@ -237,16 +237,16 @@
                     CALL BputGetSizeOfType(p%Type, typeSize)
                     
                     ! print size to log
-                    write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
-                    CALL wrf_message(err_msg)
-                    IF (gridSize * typeSize == 0) THEN
-                      write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
-                      CALL wrf_message(err_msg)
-                      write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
-                      CALL wrf_message(err_msg)
-                      write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
-                      CALL wrf_message(err_msg)
-                    ENDIF
+                    ! write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
+                    ! CALL wrf_message(err_msg)
+                    ! IF (gridSize * typeSize == 0) THEN
+                    !   write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
+                    !   CALL wrf_message(err_msg)
+                    !   write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
+                    !   CALL wrf_message(err_msg)
+                    !   write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
+                    !   CALL wrf_message(err_msg)
+                    ! ENDIF
                     
                     
                     totalSizeOut = totalSizeOut + gridSize * typeSize
@@ -262,16 +262,16 @@
                       typeSize = 4
                       CALL BputGetSizeOfType(p%Type, typeSize)
                       ! print size to log
-                      write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
-                      CALL wrf_message(err_msg)
-                      IF (gridSize * typeSize == 0) THEN
-                        write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
-                        CALL wrf_message(err_msg)
-                        write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
-                        CALL wrf_message(err_msg)
-                        write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
-                        CALL wrf_message(err_msg)
-                      ENDIF
+                      ! write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
+                      ! CALL wrf_message(err_msg)
+                      ! IF (gridSize * typeSize == 0) THEN
+                      !   write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
+                      !   CALL wrf_message(err_msg)
+                      !   write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
+                      !   CALL wrf_message(err_msg)
+                      !   write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
+                      !   CALL wrf_message(err_msg)
+                      ! ENDIF
                   
                       totalSizeOut = totalSizeOut + gridSize * typeSize
                       numCallsOut = numCallsOut + 1
@@ -290,16 +290,16 @@
                       typeSize = 4
                       CALL BputGetSizeOfType(p%Type, typeSize)
                       ! print size to log
-                      write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
-                      CALL wrf_message(err_msg)
-                      IF (gridSize * typeSize == 0) THEN
-                        write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
-                        CALL wrf_message(err_msg)
-                        write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
-                        CALL wrf_message(err_msg)
-                        write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
-                        CALL wrf_message(err_msg)
-                      ENDIF
+                      ! write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
+                      ! CALL wrf_message(err_msg)
+                      ! IF (gridSize * typeSize == 0) THEN
+                      !   write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
+                      !   CALL wrf_message(err_msg)
+                      !   write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
+                      !   CALL wrf_message(err_msg)
+                      !   write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
+                      !   CALL wrf_message(err_msg)
+                      ! ENDIF
 
                       totalSizeOut = totalSizeOut + gridSize * typeSize
                       numCallsOut = numCallsOut + 1
@@ -319,16 +319,16 @@
                       typeSize = 4
                       CALL BputGetSizeOfType(p%Type, typeSize)
                       ! print size to log
-                      write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
-                      CALL wrf_message(err_msg)
-                      IF (gridSize * typeSize == 0) THEN
-                        write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
-                        CALL wrf_message(err_msg)
-                        write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
-                        CALL wrf_message(err_msg)
-                        write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
-                        CALL wrf_message(err_msg)
-                      ENDIF
+                      ! write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
+                      ! CALL wrf_message(err_msg)
+                      ! IF (gridSize * typeSize == 0) THEN
+                      !   write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
+                      !   CALL wrf_message(err_msg)
+                      !   write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
+                      !   CALL wrf_message(err_msg)
+                      !   write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
+                      !   CALL wrf_message(err_msg)
+                      ! ENDIF
 
                       totalSizeOut = totalSizeOut + gridSize * typeSize
                       numCallsOut = numCallsOut + 1
@@ -345,16 +345,16 @@
                       typeSize = 4
                       CALL BputGetSizeOfType(p%Type, typeSize)
                       ! print size to log
-                      write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
-                      CALL wrf_message(err_msg)
-                      IF (gridSize * typeSize == 0) THEN
-                        write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
-                        CALL wrf_message(err_msg)
-                        write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
-                        CALL wrf_message(err_msg)
-                        write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
-                        CALL wrf_message(err_msg)
-                      ENDIF
+                      ! write(err_msg,*) 'Zanhua: Size of Each Call:', gridSize * typeSize
+                      ! CALL wrf_message(err_msg)
+                      ! IF (gridSize * typeSize == 0) THEN
+                      !   write(err_msg,*) 'Zanhua: details1', gridSize, typeSize, __LINE__
+                      !   CALL wrf_message(err_msg)
+                      !   write(err_msg,*) 'Zanhua: details2', p%ep1, p%sp1, p%ep2, p%sp2, p%ep3, p%sp3
+                      !   CALL wrf_message(err_msg)
+                      !   write(err_msg,*) 'Zanhua: details3', p%MemoryOrder
+                      !   CALL wrf_message(err_msg)
+                      ! ENDIF
 
                       totalSizeOut = totalSizeOut + gridSize * typeSize
                       numCallsOut = numCallsOut + 1
