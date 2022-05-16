@@ -1412,7 +1412,8 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
     call wrf_debug ( FATAL , TRIM(msg))
     return
   endif
-
+  
+  ! inq put size here
   stat = NFMPI_CLOSE(DH%NCID)
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
@@ -2351,8 +2352,6 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
   logical                                      :: quilting
   ! Local, possibly adjusted, copies of MemoryStart and MemoryEnd
   integer       ,dimension(NVarDims)           :: lMemoryStart, lMemoryEnd
-  WRITE(msg,*) 'Zanhua: inside ext_pnc_write_field: start'
-  CALL wrf_message(msg)
 
   MemoryOrder = trim(adjustl(MemoryOrdIn))
   NullName=char(0)
@@ -2384,16 +2383,6 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
   Length(1:NDim) = PatchEnd(1:NDim)-PatchStart(1:NDim)+1
   Length_native(1:NDim) = Length(1:NDim)
   Length_global(1:NDim) = DomainEnd(1:NDim)-DomainStart(1:NDim)+1
-  write(msg,*) 'zanhua: ------------------', NDim
-  CALL wrf_debug( 0, msg )
-
-  do i = 1, NDim
-    write(msg, *) Length_native(i), Length_global(i)
-    CALL wrf_debug( 0, msg )
-  end do
-
-  write(msg,*) 'zanhua: ------------------'
-  CALL wrf_debug( 0, msg )
 
   call ExtOrder(MemoryOrder,Length,Status)
   call ExtOrder(MemoryOrder,Length_global,Status)
