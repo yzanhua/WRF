@@ -15,10 +15,15 @@
 
       subroutine BputAttach(fid, bput_buffer_size, err)
         use pnetcdf
+        USE module_wrf_error ! This is only used for debug purposes
         integer, intent(in) :: fid
         integer*8, intent(in) :: bput_buffer_size
         integer, intent(out):: err
         err = nfmpi_buffer_attach(fid, bput_buffer_size)
+        if (err /= 0) then
+          write(err_msg,*) 'Zanhua: bput attach error:', err, fid, bput_buffer_size
+          CALL wrf_message(err_msg)
+        endif
       end subroutine BputAttach
 
       subroutine BputDetach(fid)
@@ -372,16 +377,32 @@
 
       subroutine BputGetNCID(DataHandle,NcidOut)
         use wrf_data_pnc
+        USE module_wrf_error ! This is only used for debug purposes
+        USE module_io
         include 'wrf_status_codes.h'
         integer               ,intent(in)     :: DataHandle
         type(wrf_data_handle) ,pointer        :: DH
         integer, intent(out) :: NcidOut
-      
-        if(DataHandle < 1 .or. DataHandle > WrfDataHandleMax) then
+        integer :: hndl
+
+        
+        if ( DataHandle .GE. 1 .AND. DataHandle .LE. 1000 ) then
+          hndl = wrf_io_handles(DataHandle)
+        else
+          hndl = -1
           NcidOut = -1
           return
         endif
-        DH => WrfDataHandles(DataHandle)
+
+
+        write(err_msg,*) 'Zanhua: BputGetNCID:', DataHandle, hndl
+        CALL wrf_message(err_msg)
+
+        if(hndl < 1 .or. hndl > WrfDataHandleMax) then
+          NcidOut = -1
+          return
+        endif
+        DH => WrfDataHandles(hndl)
         if(DH%Free) then
           NcidOut = -1
           return

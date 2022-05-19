@@ -1021,7 +1021,7 @@ endif
       
       bput_buffer_size = 0
       bput_num_calls = 0
-      bput_use = 1
+      bput_use = 0
       call BputSetUse(0)
       IF (bput_use > 0 .AND. .NOT.dryrun) then
         call BputSetUse(bput_use)
