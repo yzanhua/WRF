@@ -11,6 +11,8 @@
 !    USE module_date_time
     USE module_model_constants
     USE module_utility
+    USE bput_globals ! located at ../share/bput_globals.F90
+
     IMPLICIT NONE
 #include "wrf_io_flags.h"
 #include "wrf_status_codes.h"
@@ -102,6 +104,8 @@
     INTEGER :: nio_tasks_per_group
 
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
+    INTEGER :: bput_num_calls, bput_ncid, bput_use
+    INTEGER*8 :: bput_buffer_size
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
     CALL wrf_debug( 300 , wrf_err_message )
@@ -1003,6 +1007,23 @@ endif
     IF ( (first_input   .LE. switch .AND. switch .LE. last_input) .OR. &
          (first_history .LE. switch .AND. switch .LE. last_history ) .OR. &
           switch .EQ. restart_only    ) THEN
+      
+      bput_buffer_size = 0
+      bput_num_calls = 0
+      bput_use = 1
+      call BputSetUse(0) ! init to 0
+      IF (bput_use > 0 .AND. .NOT.dryrun) then
+        call BputSetUse(bput_use)
+        p => grid%head_statevars%next
+        CALL BputGetBufferSizeAndNumCalls(p, switch, grid, bput_buffer_size, bput_num_calls)
+      ENDIF
+      call BputGetUse(bput_use) ! get true value of bput_use
+      IF (bput_use > 0) THEN
+        call BputGetNCID(fid, bput_ncid)
+        call BputSetNumReqs(bput_num_calls)
+        call BputAttach(bput_ncid, bput_buffer_size, bput_num_calls)
+      ENDIF
+
       newswitch = switch
       p => grid%head_statevars%next
       CALL wrf_start_io_timestep(fid, ierr)
