@@ -36,6 +36,7 @@
 subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   use wrf_data_pnc
   use ext_pnc_support_routines
+  use bput_globals
   implicit none
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
@@ -50,15 +51,28 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   integer                                    :: stat
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
+  integer :: use_bput, bput_req
+
   VStart_mpi = VStart
   VCount_mpi = VCount
 
+  use_bput = 0
+  bput_req = 0
+  call BputGetUse(use_bput)
+
   if(IO == 'write') then
-    if(Coll)then
-      stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+    if (use_bput > 0) then
+      stat = nfmpi_bput_vara_real(NCID, VarID, VStart_mpi, VCount_mpi, Data, bput_req)
+      if (stat .EQ. NF_NOERR) then
+        call BputSetNextReqVal(bput_req)
+      endif
     else
-      stat = NFMPI_PUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-    end if
+      if(Coll)then
+        stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      else
+        stat = NFMPI_PUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      endif
+    endif
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -77,6 +91,7 @@ end subroutine ext_pnc_RealFieldIO
 subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   use wrf_data_pnc
   use ext_pnc_support_routines
+  use bput_globals
   implicit none
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
@@ -91,15 +106,28 @@ subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   integer                                    :: stat
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
+  integer :: use_bput, bput_req
+
   VStart_mpi = VStart
   VCount_mpi = VCount
 
+  use_bput = 0
+  bput_req = 0
+  call BputGetUse(use_bput)
+
   if(IO == 'write') then
-    if(Coll)then
-      stat = NFMPI_PUT_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-   else
-      stat = NFMPI_PUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-   endif
+    if (use_bput > 0) then
+      stat = nfmpi_bput_vara_double(NCID, VarID, VStart_mpi, VCount_mpi, Data, bput_req)
+      if (stat .EQ. NF_NOERR) then
+        call BputSetNextReqVal(bput_req)
+      endif
+    else
+      if(Coll)then
+        stat = NFMPI_PUT_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      else
+        stat = NFMPI_PUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      endif
+    endif
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -118,6 +146,7 @@ end subroutine ext_pnc_DoubleFieldIO
 subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   use wrf_data_pnc
   use ext_pnc_support_routines
+  use bput_globals
   implicit none
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
@@ -132,14 +161,27 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   integer                                    :: stat
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
+  integer :: use_bput, bput_req
+
   VStart_mpi = VStart
   VCount_mpi = VCount
 
+  use_bput = 0
+  bput_req = 0
+  call BputGetUse(use_bput)
+
   if(IO == 'write') then
-    if(Coll)then
-      stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+    if (use_bput > 0) then
+      stat = nfmpi_bput_vara_int(NCID, VarID, VStart_mpi, VCount_mpi, Data, bput_req)
+      if (stat .EQ. NF_NOERR) then
+        call BputSetNextReqVal(bput_req)
+      endif
     else
-      stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      if(Coll)then
+        stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      else
+        stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+      endif
     endif
   else
     if(Coll)then
@@ -159,6 +201,7 @@ end subroutine ext_pnc_IntFieldIO
 subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   use wrf_data_pnc
   use ext_pnc_support_routines
+  use bput_globals
   implicit none
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
@@ -175,8 +218,14 @@ subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
   integer                                                        :: i,j,k
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
+  integer :: use_bput, bput_req
+
   VStart_mpi = VStart
   VCount_mpi = VCount
+
+  use_bput = 0
+  bput_req = 0
+  call BputGetUse(use_bput)
 
   allocate(Buffer(VCount(1),VCount(2),VCount(3)), STAT=stat)
   if(stat/= 0) then
@@ -197,11 +246,18 @@ subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,Data,Status)
         enddo
       enddo
     enddo
-    if(Coll)then
-      stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
-   else
-      stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
-   end if
+    if (use_bput > 0) then
+      stat = nfmpi_bput_vara_int(NCID, VarID, VStart_mpi, VCount_mpi, Buffer, bput_req)
+      if (stat .EQ. NF_NOERR) then
+        call BputSetNextReqVal(bput_req)
+      endif
+    else
+      if(Coll)then
+        stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
+      else
+        stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
+      endif
+    endif
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
