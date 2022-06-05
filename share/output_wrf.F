@@ -1550,6 +1550,12 @@ endif
       ENDIF
     ENDIF
 
+    IF (bput_use > 0) THEN
+      call BputWaitAll(bput_ncid)
+      call BputDetach(bput_ncid)
+      call BputCleanGlobals()
+    ENDIF
+
 #if ( (EM_CORE == 1) && (DA_CORE != 1) )
       grid%save_topo_from_real = save_topo_orig
 #endif
