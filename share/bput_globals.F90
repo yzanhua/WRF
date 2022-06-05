@@ -113,7 +113,6 @@
       end subroutine BputLowerCase
 
       SUBROUTINE BputGetDim(MemoryOrder,NDim,Status)
-          include 'wrf_status_codes.h'
           character*(*) ,intent(in)  :: MemoryOrder
           integer       ,intent(out) :: NDim
           integer       ,intent(out) :: Status
@@ -131,10 +130,10 @@
               NDim = 0
             case default
               print *, 'memory order = ',MemOrd,'  ',MemoryOrder
-              Status = WRF_WARN_BAD_MEMORYORDER
+              Status = -1
               return
           end select
-          Status = WRF_NO_ERR
+          Status = 0
           return
       END SUBROUTINE BputGetDim
 
@@ -145,6 +144,10 @@
           INTEGER :: ndim, ierr
 
           CALL BputGetDim(TRIM(p%MemoryOrder), ndim, ierr)
+          IF (ierr < 0) THEN
+            sizeOut = -1
+            return
+          ENDIF
       
           sizeOut = 0
           IF (ndim .EQ. 0) THEN    
@@ -216,7 +219,7 @@
                     gridSize = 1 ! grid szie=1 when p%Ndim == 0
                     typeSize = 4 ! init default type size
                     CALL BputGetSizeOfType(p%Type, typeSize)
-                   
+
                     totalSizeOut = totalSizeOut + gridSize * typeSize
                     numCallsOut = numCallsOut + 1
                   ENDIF
@@ -226,12 +229,13 @@
                   IF ( in_use_for_config(grid%id,TRIM(p%VarName)) ) THEN
                     IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
                       CALL BputGetGridSize(p, gridSize) ! get grid size
-                      
-                      typeSize = 4 ! init default type size
-                      CALL BputGetSizeOfType(p%Type, typeSize)
-                  
-                      totalSizeOut = totalSizeOut + gridSize * typeSize
-                      numCallsOut = numCallsOut + 1
+                      IF (gridSize >= 0) THEN
+                        typeSize = 4 ! init default type size
+                        CALL BputGetSizeOfType(p%Type, typeSize)
+
+                        totalSizeOut = totalSizeOut + gridSize * typeSize
+                        numCallsOut = numCallsOut + 1
+                      ENDIF
                     ENDIF
                   ENDIF
                 ENDIF
@@ -243,11 +247,13 @@
                   ) THEN
                     IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
                       CALL BputGetGridSize(p, gridSize) ! get grid size
-                      typeSize = 4 ! init default type size
-                      CALL BputGetSizeOfType(p%Type, typeSize)
+                      IF (gridSize >= 0) THEN
+                        typeSize = 4 ! init default type size
+                        CALL BputGetSizeOfType(p%Type, typeSize)
 
-                      totalSizeOut = totalSizeOut + gridSize * typeSize
-                      numCallsOut = numCallsOut + 1
+                        totalSizeOut = totalSizeOut + gridSize * typeSize
+                        numCallsOut = numCallsOut + 1
+                      ENDIF
                     ENDIF
                   ENDIF
                 ENDIF
@@ -259,12 +265,13 @@
                   ) THEN
                     IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
                       CALL BputGetGridSize(p, gridSize) ! get grid size
+                      IF (gridSize >= 0) THEN
+                        typeSize = 4 ! init default type size
+                        CALL BputGetSizeOfType(p%Type, typeSize)
 
-                      typeSize = 4 ! init default type size
-                      CALL BputGetSizeOfType(p%Type, typeSize)
-                      
-                      totalSizeOut = totalSizeOut + gridSize * typeSize
-                      numCallsOut = numCallsOut + 1
+                        totalSizeOut = totalSizeOut + gridSize * typeSize
+                        numCallsOut = numCallsOut + 1
+                      ENDIF
                     ENDIF
                   ENDIF
                 ENDIF
@@ -274,12 +281,13 @@
                     
                     IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams_table(grid%id,itrace)%stream,newSwitch)) THEN
                       CALL BputGetGridSize(p, gridSize) ! get grid size
+                      IF (gridSize >= 0) THEN
+                        typeSize = 4 ! init default type size
+                        CALL BputGetSizeOfType(p%Type, typeSize)
 
-                      typeSize = 4 ! init default type size
-                      CALL BputGetSizeOfType(p%Type, typeSize)
-
-                      totalSizeOut = totalSizeOut + gridSize * typeSize
-                      numCallsOut = numCallsOut + 1
+                        totalSizeOut = totalSizeOut + gridSize * typeSize
+                        numCallsOut = numCallsOut + 1
+                      ENDIF
                     ENDIF
                   ENDDO
                 ENDIF
