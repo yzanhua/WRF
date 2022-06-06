@@ -10,7 +10,6 @@
       integer :: num_reqs_
       integer :: i_
       integer :: use_bput_  ! 1 use bput; 0 do not use bput (e.g. dryrun)
-      CHARACTER*256 err_msg
       integer, parameter :: DateStrLen = 19
       contains
 
