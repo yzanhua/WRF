@@ -34,7 +34,7 @@
         integer, allocatable :: st(:)
         integer :: err
         allocate(st(num_reqs_))
-        err = nf90mpi_wait_all(ncid, num_reqs_, reqs_, st)
+        err = nf90mpi_wait_all(ncid, NF_REQ_ALL, reqs_, st)
         deallocate(st)
       end subroutine BputWaitAll
 
