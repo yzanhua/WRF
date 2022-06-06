@@ -11,6 +11,7 @@
       integer :: i_
       integer :: use_bput_  ! 1 use bput; 0 do not use bput (e.g. dryrun)
       CHARACTER*256 err_msg
+      integer, parameter :: DateStrLen = 19
       contains
 
       subroutine BputAttach(fid, bput_buffer_size, err)
@@ -295,6 +296,10 @@
             ENDIF
             p => p%next
           ENDDO
+
+          ! DateStr
+          totalSizeOut = totalSizeOut + DateStrLen
+          numCallsOut = numCallsOut + 1
         
       end subroutine BputGetBufferSizeAndNumCalls
 
