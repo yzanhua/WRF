@@ -24,9 +24,9 @@ libwrfio_pnf.a:		$(OBJS) $(CODE)
 			$(AR) cr libwrfio_pnf.a $(OBJSL)
 			$(RANLIB) libwrfio_pnf.a
 
-wrf_io.o:               wrf_io.F90 $(CODE)
+wrf_io.o:               wrf_io.F90 $(CODE) ../../share/bput_globals.o
 			$(CPP1) -I$(NETCDFPATH)/include -I../ioapi_share wrf_io.F90 | $(M4) - > wrf_io.f
-			$(FC) $(FFLAGS) -c wrf_io.f
+			$(FC) $(FFLAGS) -I../../share -c wrf_io.f
 
 module_wrfsi_static.o:  module_wrfsi_static.F90
 			$(CPP1) -I$(NETCDFPATH)/include -I../ioapi_share module_wrfsi_static.F90 > module_wrfsi_static.f
