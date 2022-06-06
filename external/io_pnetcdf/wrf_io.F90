@@ -358,6 +358,7 @@ end subroutine GetName
 
 subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   use wrf_data_pnc
+  use bput_globals, ONLY: BputGetUse, BputSetNextReqVal
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
   character (*)         ,intent(in)     :: IO
@@ -370,6 +371,10 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   integer(KIND=MPI_OFFSET_KIND)         :: VCount(2)
   integer                               :: stat
   integer                               :: i
+  integer :: use_bput, bput_req
+  use_bput = 0
+  bput_req = 0
+
 
   DH => WrfDataHandles(DataHandle)
   call DateCheck(DateStr,Status)
@@ -401,7 +406,16 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     VStart(2) = TimeIndex
     VCount(1) = DateStrLen
     VCount(2) = 1
-    stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
+
+    call BputGetUse(use_bput)
+    if (use_bput > 0) then
+      stat = nfmpi_bput_vara_text(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, bput_req)
+      if (stat == WRF_NO_ERR) then
+        call BputSetNextReqVal(bput_req)
+      endif
+    else
+      stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
+    endif
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__ 
@@ -1940,6 +1954,7 @@ subroutine ext_pnc_put_var_ti_char(DataHandle,Element,Var,Data,Status)
 #define CHAR_TYPE
 #include "ext_pnc_put_var_ti.code"
 #undef CHAR_TYPE
+
 end subroutine ext_pnc_put_var_ti_char
 
 subroutine ext_pnc_put_var_td_char(DataHandle,Element,DateStr,Var,Data,Status)
