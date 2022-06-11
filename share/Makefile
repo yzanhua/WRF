@@ -19,7 +19,7 @@ MODULES1=                               \
         module_interp_store.o           \
         module_string_tools.o           \
         module_MPP.o                    \
-        bput_globals.o
+        module_pnetcdf_bput.o
 
 MODULES2=                               \
         module_date_time.o              \
@@ -31,7 +31,7 @@ MODULES3=                               \
         module_io_domain.o              
 
 MODULES4=                               \
-        module_optional_input.o         
+        module_optional_input.o
 
 MODULES = $(MODULES1) $(MODULES2) $(MODULES3) $(MODULES4)
 
@@ -101,8 +101,8 @@ nmm_contrib : $(NMM_OBJS) $(NMM_MODULES)
 #module_io_domain_defs.inc : module_io_domain_defs.m4
 #	$(M4) module_io_domain_defs.m4 > module_io_domain_defs.inc
 
-bput_globals.o:	bput_globals.F90
-	$(FC) $(FFLAGS) -I../inc -I../frame -I../external/io_pnetcdf -I$(PNETCDF)/include -c bput_globals.F90
+module_pnetcdf_bput.o: module_pnetcdf_bput.F90
+	$(FC) $(FFLAGS) -I../inc -I../frame -I../external/io_pnetcdf -I$(PNETCDF)/include -c module_pnetcdf_bput.F90
 
 clean:
 	@ echo 'use the clean script'
@@ -114,6 +114,11 @@ module_bc_em.o: ../share/module_bc.o \
                 ../share/module_model_constants.o \
                 ../frame/module_configure.o \
                 ../frame/module_wrf_error.o
+
+module_pnetcdf_bput.o: ../frame/module_domain_type.o \
+                        ../frame/module_domain.o \
+                        ../frame/module_io.o \
+                        ../external/io_pnetcdf/wrf_io.o
 
 include ../main/depend.common
 

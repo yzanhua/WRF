@@ -24,17 +24,17 @@ libwrfio_pnf.a:		$(OBJS) $(CODE)
 			$(AR) cr libwrfio_pnf.a $(OBJSL)
 			$(RANLIB) libwrfio_pnf.a
 
-wrf_io.o:               wrf_io.F90 $(CODE) ../../share/bput_globals.o
+wrf_io.o:               wrf_io.F90 $(CODE)
 			$(CPP1) -I$(NETCDFPATH)/include -I../ioapi_share wrf_io.F90 | $(M4) - > wrf_io.f
-			$(FC) $(FFLAGS) -I../../share -c wrf_io.f
+			$(FC) $(FFLAGS) -c wrf_io.f
 
 module_wrfsi_static.o:  module_wrfsi_static.F90
 			$(CPP1) -I$(NETCDFPATH)/include -I../ioapi_share module_wrfsi_static.F90 > module_wrfsi_static.f
 			$(FC) $(FFLAGS) -c module_wrfsi_static.f
 
-field_routines.o:	field_routines.F90 wrf_io.o ../../share/bput_globals.o
-			$(CPP1) -I$(NETCDFPATH)/include -I../../share -I../ioapi_share field_routines.F90 > field_routines.f
-			$(FC) $(FFLAGS) -I../../share -c field_routines.f
+field_routines.o:	field_routines.F90 wrf_io.o
+			$(CPP1) -I$(NETCDFPATH)/include -I../ioapi_share field_routines.F90 > field_routines.f
+			$(FC) $(FFLAGS) -c field_routines.f
 
 superclean:
 			@/bin/rm -f *.f *.o testWRFWrite testWRFRead \

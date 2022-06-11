@@ -3,22 +3,18 @@
   !
   ! all methods's names begin with "Bput"
 
-  module bput_globals
+  module module_pnetcdf_bput
       implicit none
-
-      integer, allocatable :: reqs_(:)
-      integer :: num_reqs_
-      integer :: i_
-      integer :: use_bput_  ! 1 use bput; 0 do not use bput (e.g. dryrun)
       integer, parameter :: DateStrLen = 19
       contains
 
-      subroutine BputAttach(fid, bput_buffer_size, err)
+      subroutine BputAttach(fid, bput_buffer_size, status)
         use pnetcdf
         integer, intent(in) :: fid
         integer*8, intent(in) :: bput_buffer_size
-        integer, intent(out):: err
-        err = nfmpi_buffer_attach(fid, bput_buffer_size)
+        integer, intent(out):: status
+        status = nfmpi_buffer_attach(fid, bput_buffer_size)
+        !check err here
       end subroutine BputAttach
 
       subroutine BputDetach(fid)
@@ -31,69 +27,40 @@
       subroutine BputWaitAll(ncid)
         use pnetcdf
         integer, intent(in) :: ncid
-        integer, allocatable :: st(:)
+        integer, allocatable :: dummy(:)
         integer :: err
-        allocate(st(num_reqs_))
-        err = nf90mpi_wait_all(ncid, NF_REQ_ALL, reqs_, st)
-        deallocate(st)
+        err = nf90mpi_wait_all(ncid, NF_REQ_ALL, dummy, dummy)
       end subroutine BputWaitAll
 
+      subroutine BputSetUse(use_bput, DataHandle, statusOut)
+        use wrf_data_pnc
+        USE module_io
+        logical, intent(in) :: use_bput
+        integer, intent(in) :: DataHandle
+        type(wrf_data_handle) ,pointer :: DH
+        integer :: hndl
+        integer, intent(out) :: statusOut
 
-      subroutine BputSetUse(use_bput)
-        integer, intent(in) :: use_bput
-        use_bput_ = use_bput
+        statusOut = -1
+         
+        if ( DataHandle .GE. 1 .AND. DataHandle .LE. 1000 ) then
+          hndl = wrf_io_handles(DataHandle) ! get true handle (integer)
+        else
+          hndl = -1
+          return
+        endif
+
+        if(hndl < 1 .or. hndl > WrfDataHandleMax) then
+          return
+        endif
+
+        DH => WrfDataHandles(hndl)
+        if(DH%Free) then
+          return
+        endif
+        DH%UseBput = use_bput
+        return
       end subroutine BputSetUse
-
-      subroutine BputGetUse(use_bput_out)
-        integer, intent(out) :: use_bput_out
-        use_bput_out = use_bput_
-      end subroutine BputGetUse
-
-      subroutine BputSetNumReqs(num_reqs)
-          integer, intent(in) :: num_reqs
-          
-          if (allocated(reqs_)) deallocate(reqs_)
-          allocate(reqs_(num_reqs))
-
-          num_reqs_ = num_reqs
-          i_ = 1
-      end subroutine BputSetNumReqs
-
-      subroutine BputCleanGlobals()
-        if (allocated(reqs_)) deallocate(reqs_)
-        num_reqs_ = 0
-        i_ = 1
-        use_bput_ = 0
-      end subroutine BputCleanGlobals
-
-
-      subroutine BputSetNextReqVal(req_val)
-          integer, intent(in) :: req_val
-
-          if (i_ .LE. num_reqs_) then
-              reqs_(i_) = req_val
-              i_ = i_ + 1
-          endif
-          
-      end subroutine BputSetNextReqVal
-
-      subroutine BputGetNumOfReqs(num_reqs)
-          integer, intent(out) :: num_reqs
-
-          num_reqs = num_reqs_
-      end subroutine BputGetNumOfReqs
-
-      subroutine BputGetAllReqs(all_reqs)
-        integer, intent(inout), allocatable :: all_reqs(:)
-        integer :: i
-        if (allocated(all_reqs)) deallocate(all_reqs)
-        allocate(all_reqs(num_reqs_))
-
-        do i = 1 , num_reqs_
-          all_reqs(i) = reqs_(i)
-        enddo
-
-      end subroutine BputGetAllReqs
 
       subroutine BputLowerCase(MemoryOrder,MemOrd)
           character*(*) ,intent(in)  :: MemoryOrder
@@ -185,7 +152,7 @@
           RETURN
       END SUBROUTINE BputGetSizeOfType
 
-      subroutine BputGetBufferSizeAndNumCalls(fieldListPtr,switch,grid, totalSizeOut, numCallsOut)
+      subroutine BputGetBufferSize(fieldListPtr,switch,grid, totalSizeOut)
           USE module_domain_type, ONLY : fieldlist
           USE module_domain
           USE module_io
@@ -197,7 +164,6 @@
 
           ! output variables
           integer*8, intent(out):: totalSizeOut
-          integer, intent(out):: numCallsOut
 
           ! temp variables
           integer :: gridSize, typeSize
@@ -208,7 +174,6 @@
           ! init variables
           newSwitch = switch
           totalSizeOut = 0
-          numCallsOut = 0
 
           DO WHILE ( ASSOCIATED( p ) )
             IF ( p%ProcOrient .NE. 'X' .AND. p%ProcOrient .NE. 'Y' ) THEN
@@ -221,7 +186,6 @@
                     CALL BputGetSizeOfType(p%Type, typeSize)
 
                     totalSizeOut = totalSizeOut + gridSize * typeSize
-                    numCallsOut = numCallsOut + 1
                   ENDIF
                 ENDIF
               ELSE IF (p%Ndim .EQ. 1) THEN
@@ -234,7 +198,6 @@
                         CALL BputGetSizeOfType(p%Type, typeSize)
 
                         totalSizeOut = totalSizeOut + gridSize * typeSize
-                        numCallsOut = numCallsOut + 1
                       ENDIF
                     ENDIF
                   ENDIF
@@ -252,7 +215,6 @@
                         CALL BputGetSizeOfType(p%Type, typeSize)
 
                         totalSizeOut = totalSizeOut + gridSize * typeSize
-                        numCallsOut = numCallsOut + 1
                       ENDIF
                     ENDIF
                   ENDIF
@@ -270,7 +232,6 @@
                         CALL BputGetSizeOfType(p%Type, typeSize)
 
                         totalSizeOut = totalSizeOut + gridSize * typeSize
-                        numCallsOut = numCallsOut + 1
                       ENDIF
                     ENDIF
                   ENDIF
@@ -286,7 +247,6 @@
                         CALL BputGetSizeOfType(p%Type, typeSize)
 
                         totalSizeOut = totalSizeOut + gridSize * typeSize
-                        numCallsOut = numCallsOut + 1
                       ENDIF
                     ENDIF
                   ENDDO
@@ -298,9 +258,8 @@
 
           ! DateStr
           totalSizeOut = totalSizeOut + DateStrLen
-          numCallsOut = numCallsOut + 1
         
-      end subroutine BputGetBufferSizeAndNumCalls
+      end subroutine BputGetBufferSize
 
       subroutine BputGetNCID(DataHandle,NcidOut)
         use wrf_data_pnc
