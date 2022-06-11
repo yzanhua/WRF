@@ -11,7 +11,7 @@
 !    USE module_date_time
     USE module_model_constants
     USE module_utility
-    USE bput_globals ! located at ../share/bput_globals.F90
+    USE module_pnetcdf_bput ! located at ../share/module_pnetcdf_bput.F90
 
     IMPLICIT NONE
 #include "wrf_io_flags.h"
@@ -104,7 +104,8 @@
     INTEGER :: nio_tasks_per_group
 
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
-    INTEGER :: bput_num_calls, bput_ncid, bput_use
+    INTEGER :: bput_ncid
+    LOGICAL :: bput_use
     INTEGER*8 :: bput_buffer_size
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
@@ -1008,20 +1009,16 @@ endif
           switch .EQ. restart_only    ) THEN
       
       bput_buffer_size = 0
-      bput_num_calls = 0
-      bput_use = 1
-      call BputSetUse(0) ! init to 0
-      IF (bput_use > 0 .AND. .NOT.dryrun) then
-        call BputSetUse(bput_use)
+      bput_use = grid%use_bput_for_pnetcdf .AND. (.NOT.dryrun) .AND. (grid%io_form_history == 11) .AND. (grid%io_form_restart == 11)
+      
+      IF (bput_use) then
+        call BputSetUse(bput_use, fid, ierr)
         p => grid%head_statevars%next
-        CALL BputGetBufferSizeAndNumCalls(p, switch, grid, bput_buffer_size, bput_num_calls)
-      ENDIF
-      call BputGetUse(bput_use) ! get true value of bput_use
-      IF (bput_use > 0) THEN
+        CALL BputGetBufferSize(p, switch, grid, bput_buffer_size)
         call BputGetNCID(fid, bput_ncid)
-        call BputSetNumReqs(bput_num_calls)
-        call BputAttach(bput_ncid, bput_buffer_size, bput_num_calls)
+        call BputAttach(bput_ncid, bput_buffer_size, ierr)
       ENDIF
+     
 
       newswitch = switch
       p => grid%head_statevars%next
@@ -1550,10 +1547,9 @@ endif
       ENDIF
     ENDIF
 
-    IF (bput_use > 0) THEN
+    IF (bput_use) THEN
       call BputWaitAll(bput_ncid)
       call BputDetach(bput_ncid)
-      call BputCleanGlobals()
     ENDIF
 
 #if ( (EM_CORE == 1) && (DA_CORE != 1) )

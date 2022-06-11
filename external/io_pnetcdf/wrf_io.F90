@@ -84,6 +84,7 @@ module wrf_data_pnc
     character (VarNameLen), pointer       :: VarNames(:)
     integer                               :: CurrentVariable  !Only used for read
     integer                               :: NumVars
+
 ! first_operation is set to .TRUE. when a new handle is allocated 
 ! or when open-for-write or open-for-read are committed.  It is set 
 ! to .FALSE. when the first field is read or written.  
@@ -91,6 +92,7 @@ module wrf_data_pnc
 ! Whether pnetcdf file is in collective (.true.) or independent mode
 ! Collective mode is the default.
     logical                               :: Collective
+    logical :: UseBput
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -358,7 +360,6 @@ end subroutine GetName
 
 subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   use wrf_data_pnc
-  use bput_globals, ONLY: BputGetUse, BputSetNextReqVal
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
   character (*)         ,intent(in)     :: IO
@@ -407,15 +408,12 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     VCount(1) = DateStrLen
     VCount(2) = 1
 
-    call BputGetUse(use_bput)
-    if (use_bput > 0) then
+    if (DH%UseBput) then
       stat = nfmpi_bput_vara_text(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, bput_req)
-      if (stat == WRF_NO_ERR) then
-        call BputSetNextReqVal(bput_req)
-      endif
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
     endif
+
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__ 
@@ -714,16 +712,16 @@ VCount(:) = 1
   select case (FieldType)
     case (WRF_REAL)
       call ext_pnc_RealFieldIO    (WrfDataHandles(DataHandle)%Collective, &
-                                   IO,NCID,VarID,VStart,VCount,XField,Status)
+                                   IO,NCID,VarID,VStart,VCount,WrfDataHandles(DataHandle)%UseBput,XField,Status)
     case (WRF_DOUBLE)
       call ext_pnc_DoubleFieldIO  (WrfDataHandles(DataHandle)%Collective, &
-                                   IO,NCID,VarID,VStart,VCount,XField,Status)
+                                   IO,NCID,VarID,VStart,VCount,WrfDataHandles(DataHandle)%UseBput,XField,Status)
     case (WRF_INTEGER)
       call ext_pnc_IntFieldIO     (WrfDataHandles(DataHandle)%Collective, &
-                                   IO,NCID,VarID,VStart,VCount,XField,Status)
+                                   IO,NCID,VarID,VStart,VCount,WrfDataHandles(DataHandle)%UseBput,XField,Status)
     case (WRF_LOGICAL)
       call ext_pnc_LogicalFieldIO (WrfDataHandles(DataHandle)%Collective, &
-                                   IO,NCID,VarID,VStart,VCount,XField,Status)
+                                   IO,NCID,VarID,VStart,VCount,WrfDataHandles(DataHandle)%UseBput,XField,Status)
       if(Status /= WRF_NO_ERR) return
     case default
 !for wrf_complex, double_complex
