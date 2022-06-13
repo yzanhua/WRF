@@ -102,7 +102,7 @@ nmm_contrib : $(NMM_OBJS) $(NMM_MODULES)
 #	$(M4) module_io_domain_defs.m4 > module_io_domain_defs.inc
 
 module_pnetcdf_bput.o: module_pnetcdf_bput.F90
-	$(FC) $(FFLAGS) -I../inc -I../frame -I../external/io_pnetcdf -I$(PNETCDF)/include -c module_pnetcdf_bput.F90
+	$(FC) $(FCFLAGS) $(PROMOTION) $(FCSUFFIX) $(FFLAGS) $(INCLUDE_MODULES) -I../external/io_pnetcdf -I$(PNETCDF)/include -c module_pnetcdf_bput.F90
 
 clean:
 	@ echo 'use the clean script'
