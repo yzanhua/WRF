@@ -1012,7 +1012,6 @@ module_io_domain.o: module_io_wrf.o module_date_time.o ../frame/module_io.o  \
 output_wrf.o:   ../frame/module_io.o ../frame/module_wrf_error.o \
                 ../frame/module_domain.o ../frame/module_state_description.o \
                 ../frame/module_configure.o module_io_wrf.o  \
-				module_pnetcdf_bput.o \
 		$(ESMF_MOD_DEPENDENCE)
 
 wrf_fddaobs_in.o: \

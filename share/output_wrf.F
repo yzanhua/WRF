@@ -11,7 +11,6 @@
 !    USE module_date_time
     USE module_model_constants
     USE module_utility
-    USE module_pnetcdf_bput ! located at ../share/module_pnetcdf_bput.F90
 
     IMPLICIT NONE
 #include "wrf_io_flags.h"
@@ -104,7 +103,7 @@
     INTEGER :: nio_tasks_per_group
 
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
-    INTEGER :: bput_ncid
+
     LOGICAL :: bput_use
     INTEGER*8 :: bput_buffer_size
 
@@ -1012,12 +1011,12 @@ endif
       bput_use = grid%use_bput_for_pnetcdf .AND. (.NOT.dryrun) .AND. (grid%io_form_history == 11) .AND. (grid%io_form_restart == 11)
       
       IF (bput_use) then
-        call BputSetUse(bput_use, fid, ierr)
-        p => grid%head_statevars%next
-        CALL BputGetBufferSize(p, switch, grid, bput_buffer_size)
-        call BputGetNCID(fid, bput_ncid)
-        call BputAttach(bput_ncid, bput_buffer_size, ierr)
+        CALL BputGetBufferSize(grid, switch, bput_buffer_size)
+        write(wrf_err_message,*) '****: calculated buffer size', bput_buffer_size
+        call wrf_debug(0 , TRIM(wrf_err_message))
+        
       ENDIF
+      call BputSetBufferSize(fid, bput_buffer_size)
      
 
       newswitch = switch
@@ -1548,8 +1547,7 @@ endif
     ENDIF
 
     IF (bput_use) THEN
-      call BputWaitAll(bput_ncid)
-      call BputDetach(bput_ncid)
+      call BputWaitAndDetach(fid)
     ENDIF
 
 #if ( (EM_CORE == 1) && (DA_CORE != 1) )
@@ -1612,3 +1610,184 @@ endif
     RETURN
   END SUBROUTINE traverse_statevars_debug
 
+  SUBROUTINE BputGetBufferSize(grid, switch, totalSizeOut)
+    USE module_domain_type, ONLY : fieldlist
+    USE module_domain
+    USE module_io
+    IMPLICIT NONE
+
+    INTEGER, PARAMETER :: DateStrLen = 19
+    TYPE(domain), INTENT(in) :: grid
+    INTEGER, INTENT(IN) :: switch
+    INTEGER*8, INTENT(out):: totalSizeOut
+
+    ! temp variables
+    INTEGER :: gridSize, typeSize
+    INTEGER newSwitch, itrace
+    TYPE(fieldlist), POINTER :: p
+    p => grid%head_statevars%next
+    
+    ! init variables
+    newSwitch = switch
+    totalSizeOut = 0
+
+    DO WHILE ( ASSOCIATED( p ) )
+      IF ( p%ProcOrient .NE. 'X' .AND. p%ProcOrient .NE. 'Y' ) THEN
+        gridSize = 0
+        IF (p%Ndim .EQ. 0)  THEN
+          IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newSwitch)) THEN
+            IF ( in_use_for_config(grid%id,TRIM(p%VarName)) ) THEN
+              gridSize = 1 ! grid szie=1 when p%Ndim == 0
+              typeSize = 4 ! init default type size
+              CALL BputGetSizeOfType(p%Type, typeSize)
+
+              totalSizeOut = totalSizeOut + gridSize * typeSize
+            ENDIF
+          ENDIF
+        ELSE IF (p%Ndim .EQ. 1) THEN
+          IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newSwitch)) THEN
+            IF ( in_use_for_config(grid%id,TRIM(p%VarName)) ) THEN
+              IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+                CALL BputGetGridSize(p, gridSize) ! get grid size
+                IF (gridSize >= 0) THEN
+                  typeSize = 4 ! init default type size
+                  CALL BputGetSizeOfType(p%Type, typeSize)
+
+                  totalSizeOut = totalSizeOut + gridSize * typeSize
+                ENDIF
+              ENDIF
+            ENDIF
+          ENDIF
+        ELSE IF (p%Ndim .EQ. 2) THEN
+          IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newSwitch)) THEN
+            IF ( in_use_for_config(grid%id,TRIM(p%VarName)) .AND.  &
+              ( .NOT. p%subgrid_x .OR. (p%subgrid_x .AND. grid%sr_x .GT. 0) ) .AND. &
+              ( .NOT. p%subgrid_y .OR. (p%subgrid_y .AND. grid%sr_y .GT. 0) )       &
+            ) THEN
+              IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+                CALL BputGetGridSize(p, gridSize) ! get grid size
+                IF (gridSize >= 0) THEN
+                  typeSize = 4 ! init default type size
+                  CALL BputGetSizeOfType(p%Type, typeSize)
+
+                  totalSizeOut = totalSizeOut + gridSize * typeSize
+                ENDIF
+              ENDIF
+            ENDIF
+          ENDIF
+        ELSE IF (p%Ndim .EQ. 3) THEN
+          IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams,newSwitch)) THEN
+            IF ( in_use_for_config(grid%id,TRIM(p%VarName)) .AND.  &
+              ( .NOT. p%subgrid_x .OR. (p%subgrid_x .AND. grid%sr_x .GT. 0) ) .AND. &
+              ( .NOT. p%subgrid_y .OR. (p%subgrid_y .AND. grid%sr_y .GT. 0) )       &
+            ) THEN
+              IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+                CALL BputGetGridSize(p, gridSize) ! get grid size
+                IF (gridSize >= 0) THEN
+                  typeSize = 4 ! init default type size
+                  CALL BputGetSizeOfType(p%Type, typeSize)
+
+                  totalSizeOut = totalSizeOut + gridSize * typeSize
+                ENDIF
+              ENDIF
+            ENDIF
+          ENDIF
+        ELSE IF (p%Ndim .EQ. 4 .AND. p%scalar_array ) THEN
+          IF (switch.EQ.restart_only.OR.p%Ntl/100.EQ.mod(p%Ntl,100)) THEN
+            DO itrace = PARAM_FIRST_SCALAR , p%num_table(grid%id)
+              
+              IF ((p%Restart.AND.switch.EQ.restart_only).OR.on_stream(p%streams_table(grid%id,itrace)%stream,newSwitch)) THEN
+                CALL BputGetGridSize(p, gridSize) ! get grid size
+                IF (gridSize >= 0) THEN
+                  typeSize = 4 ! init default type size
+                  CALL BputGetSizeOfType(p%Type, typeSize)
+
+                  totalSizeOut = totalSizeOut + gridSize * typeSize
+                ENDIF
+              ENDIF
+            ENDDO
+          ENDIF
+        ENDIF
+      ENDIF
+      p => p%next
+    ENDDO
+
+    ! DateStr
+    totalSizeOut = totalSizeOut + DateStrLen
+
+    contains
+    SUBROUTINE BputGetGridSize(ptr, sizeOut)
+      USE module_domain_type, ONLY : fieldlist
+      TYPE(fieldlist), INTENT(INOUT), POINTER :: ptr
+      INTEGER, INTENT(OUT) :: sizeOut
+      INTEGER :: ndim, ierr
+
+      ierr = 0
+      CALL BputGetDim(TRIM(ptr%MemoryOrder), ndim, ierr)
+      IF (ierr < 0) THEN
+        sizeOut = -1
+        return
+      ENDIF
+  
+      sizeOut = 0
+      IF (ndim .EQ. 0) THEN    
+        sizeOut = 1
+      ELSE IF (ndim .EQ. 1) THEN
+        IF (ptr%ep1 - ptr%sp1 >= 0) &
+        sizeOut = (ptr%ep1 - ptr%sp1 + 1)
+      ELSE IF (ndim .EQ. 2) THEN
+        IF (ptr%ep1 - ptr%sp1 >= 0 .AND. ptr%ep2 - ptr%sp2 >= 0) &
+        sizeOut = (ptr%ep1 - ptr%sp1 + 1) * (ptr%ep2 - ptr%sp2 + 1) 
+      ELSE IF (ndim .EQ. 3) THEN
+        IF (ptr%ep1 - ptr%sp1 >= 0 .AND. ptr%ep2 - ptr%sp2 >= 0 .AND. ptr%ep3 - ptr%sp3 >= 0) &
+        sizeOut = (ptr%ep1 - ptr%sp1 + 1) * (ptr%ep2 - ptr%sp2 + 1) * (ptr%ep3 - ptr%sp3 + 1)
+      ENDIF
+      return
+    END SUBROUTINE BputGetGridSize
+
+    SUBROUTINE BputGetSizeOfType(Type, Size)
+      CHARACTER*1, INTENT(IN) :: Type
+      INTEGER, INTENT(OUT) :: Size
+      ! LOGICAL :: temp_logical
+      REAL :: temp_real
+      REAL*8 :: temp_double
+      
+      Size = 1
+      IF (Type .EQ. 'r') THEN
+        Size = SIZEOF(temp_real)
+      ELSE IF (Type .EQ. 'd') THEN
+        Size = SIZEOF(temp_double)
+      ELSE IF (Type .EQ. 'i') THEN
+        Size = SIZEOF(Size)
+      ELSE IF (Type .EQ. 'l') THEN
+        Size = SIZEOF(Size)
+      ENDIF
+      RETURN
+    END SUBROUTINE BputGetSizeOfType
+
+    SUBROUTINE BputGetDim(MemoryOrder,NDim,Status)
+      CHARACTER*(*) ,INTENT(IN)  :: MemoryOrder
+      INTEGER       ,INTENT(OUT) :: NDim
+      INTEGER       ,INTENT(OUT) :: Status
+      CHARACTER*3                :: MemOrd
+    
+      CALL lower_case(MemoryOrder,MemOrd)
+      SELECT CASE (MemOrd)
+        CASE ('xyz','xzy','yxz','yzx','zxy','zyx','xsz','xez','ysz','yez')
+          NDim = 3
+        CASE ('xy','yx','xs','xe','ys','ye')
+          NDim = 2
+        CASE ('z','c')
+          NDim = 1
+        CASE ('0')  ! NDim=0 for scalars.  TBH:  20060502
+          NDim = 0
+        CASE default
+          print *, 'memory order = ',MemOrd,'  ',MemoryOrder
+          Status = -1
+          return
+        END SELECT
+      Status = 0
+      RETURN
+    END SUBROUTINE BputGetDim
+  
+  END SUBROUTINE BputGetBufferSize

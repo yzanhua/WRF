@@ -416,7 +416,7 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
 
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
-      write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__ 
+      write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__, DH%NCID
       call wrf_debug ( WARN , TRIM(msg))
       return
     endif
@@ -901,6 +901,69 @@ LOGICAL FUNCTION ncd_is_first_operation( DataHandle )
 END FUNCTION ncd_is_first_operation
 
 end module ext_pnc_support_routines
+
+subroutine ext_pnc_set_bput_buffer_size(hndl, bput_buffer_size)
+  use wrf_data_pnc
+  use ext_pnc_support_routines
+  integer, INTENT(IN)  :: hndl
+  integer, INTENT(IN)  :: bput_buffer_size
+  integer :: ierr
+  type(wrf_data_handle) ,pointer        :: DH
+  integer :: status
+  call GetDH(hndl,DH,ierr)
+  write(msg,*) '****: attch to', DH%NCID, 'amount:', bput_buffer_size
+  call wrf_debug(0 , TRIM(msg))
+  if (bput_buffer_size > 0) then
+    ierr = nfmpi_buffer_attach(DH%NCID, bput_buffer_size)
+    DH%UseBput = .true.
+    call netcdf_err(ierr,status)
+    if(status /= 0) then
+      write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
+      call wrf_debug ( WARN , TRIM(msg))
+      return
+    endif
+  else
+    DH%UseBput = .false.
+  endif
+end subroutine ext_pnc_set_bput_buffer_size
+
+subroutine ext_pnc_bput_wait_and_detach(hndl)
+  use wrf_data_pnc
+  use ext_pnc_support_routines
+  use pnetcdf
+  integer, INTENT(IN)  :: hndl
+  integer :: ierr
+  type(wrf_data_handle) ,pointer        :: DH
+  integer, allocatable :: dummy(:)
+  integer :: status
+
+
+  call GetDH(hndl,DH,ierr)
+  if (DH%UseBput) then
+    write(msg,*) '****: wait and detch called on', DH%NCID, NF_REQ_ALL
+    call wrf_debug(0 , TRIM(msg))
+
+    allocate(dummy(1))
+    ierr = nfmpi_wait_all(DH%NCID, NF_REQ_ALL, dummy, dummy)
+    call netcdf_err(ierr,status)
+    if(status /= 0) then
+      write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
+      call wrf_debug ( WARN , TRIM(msg))
+      return
+    endif
+    deallocate(dummy)
+
+    ierr = nfmpi_buffer_detach(DH%NCID)
+    call netcdf_err(ierr,status)
+    if(status /= 0) then
+      write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
+      call wrf_debug ( WARN , TRIM(msg))
+      return
+    endif
+    
+  endif
+    
+end subroutine ext_pnc_bput_wait_and_detach
 
 subroutine ext_pnc_open_for_read(DatasetName, Comm1, Comm2, SysDepInfo, DataHandle, Status)
   use wrf_data_pnc
