@@ -92,7 +92,7 @@ module wrf_data_pnc
 ! Whether pnetcdf file is in collective (.true.) or independent mode
 ! Collective mode is the default.
     logical                               :: Collective
-    logical :: UseBput
+    logical                               :: BputEnabled
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -408,8 +408,8 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     VCount(1) = DateStrLen
     VCount(2) = 1
 
-    if (DH%UseBput) then
-      stat = nfmpi_bput_vara_text(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, bput_req)
+    if (DH%BputEnabled) then
+      stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, bput_req)
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
     endif
@@ -692,6 +692,7 @@ subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
   integer                                   :: NDim
   integer,dimension(NVarDims)               :: VStart
   integer,dimension(NVarDims)               :: VCount
+  type(wrf_data_handle)      ,pointer       :: DH
 
   call GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   if(Status /= WRF_NO_ERR) then
@@ -709,19 +710,20 @@ VCount(:) = 1
   VCount(1:NDim) = Length(1:NDim)
   VStart(NDim+1) = TimeIndex
   VCount(NDim+1) = 1
+  DH => WrfDataHandles(DataHandle) 
   select case (FieldType)
     case (WRF_REAL)
-      call ext_pnc_RealFieldIO    (WrfDataHandles(DataHandle)%Collective, &
-                                   IO,NCID,VarID,VStart,VCount,WrfDataHandles(DataHandle)%UseBput,XField,Status)
+      call ext_pnc_RealFieldIO(DH%Collective,IO,NCID,VarID,&
+                            VStart,VCount,DH%BputEnabled,XField,Status)
     case (WRF_DOUBLE)
-      call ext_pnc_DoubleFieldIO  (WrfDataHandles(DataHandle)%Collective, &
-                                   IO,NCID,VarID,VStart,VCount,WrfDataHandles(DataHandle)%UseBput,XField,Status)
+      call ext_pnc_DoubleFieldIO(DH%Collective,IO,NCID,VarID,&
+                            VStart,VCount,DH%BputEnabled,XField,Status)
     case (WRF_INTEGER)
-      call ext_pnc_IntFieldIO     (WrfDataHandles(DataHandle)%Collective, &
-                                   IO,NCID,VarID,VStart,VCount,WrfDataHandles(DataHandle)%UseBput,XField,Status)
+      call ext_pnc_IntFieldIO(DH%Collective,IO,NCID,VarID,&
+                            VStart,VCount,DH%BputEnabled,XField,Status)
     case (WRF_LOGICAL)
-      call ext_pnc_LogicalFieldIO (WrfDataHandles(DataHandle)%Collective, &
-                                   IO,NCID,VarID,VStart,VCount,WrfDataHandles(DataHandle)%UseBput,XField,Status)
+      call ext_pnc_LogicalFieldIO(DH%Collective,IO,NCID,VarID,&
+                            VStart,VCount,DH%BputEnabled,XField,Status)
       if(Status /= WRF_NO_ERR) return
     case default
 !for wrf_complex, double_complex
@@ -902,62 +904,61 @@ END FUNCTION ncd_is_first_operation
 
 end module ext_pnc_support_routines
 
-subroutine ext_pnc_set_bput_buffer_size(hndl, bput_buffer_size)
+subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   use wrf_data_pnc
   use ext_pnc_support_routines
-  integer, INTENT(IN)  :: hndl
-  integer, INTENT(IN)  :: bput_buffer_size
-  integer :: ierr
-  type(wrf_data_handle) ,pointer        :: DH
-  integer :: status
+  implicit none
+  include 'wrf_status_codes.h'
+  integer, INTENT(IN) :: hndl
+  integer, INTENT(IN) :: bput_buffer_size
+  type(wrf_data_handle), pointer :: DH
+  integer :: ierr, status
+
   call GetDH(hndl,DH,ierr)
   write(msg,*) '****: attch to', DH%NCID, 'amount:', bput_buffer_size
   call wrf_debug(0 , TRIM(msg))
   if (bput_buffer_size > 0) then
-    ierr = nfmpi_buffer_attach(DH%NCID, bput_buffer_size)
-    DH%UseBput = .true.
+    ierr = NFMPI_BUFFER_ATTACH(DH%NCID, bput_buffer_size)
+    DH%BputEnabled = .true.
     call netcdf_err(ierr,status)
-    if(status /= 0) then
+    if(status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
       call wrf_debug ( WARN , TRIM(msg))
       return
     endif
   else
-    DH%UseBput = .false.
+    DH%BputEnabled = .false.
   endif
-end subroutine ext_pnc_set_bput_buffer_size
+end subroutine ext_pnc_bput_set_buffer_size
 
 subroutine ext_pnc_bput_wait_and_detach(hndl)
   use wrf_data_pnc
   use ext_pnc_support_routines
   use pnetcdf
+  implicit none
+  include 'wrf_status_codes.h'
   integer, INTENT(IN)  :: hndl
-  integer :: ierr
-  type(wrf_data_handle) ,pointer        :: DH
-  integer, allocatable :: dummy(:)
-  integer :: status
-
-
+  type(wrf_data_handle), pointer :: DH
+  integer :: ierr, status, dummy(0)
+  
   call GetDH(hndl,DH,ierr)
-  if (DH%UseBput) then
-    write(msg,*) '****: wait and detch called on', DH%NCID, NF_REQ_ALL
-    call wrf_debug(0 , TRIM(msg))
+  if (DH%BputEnabled) then
+    write(msg,*) '****: wait and detch called on', DH%NCID
+    call wrf_debug(WARN , TRIM(msg))
 
-    allocate(dummy(1))
-    ierr = nfmpi_wait_all(DH%NCID, NF_REQ_ALL, dummy, dummy)
+    ierr = NFMPI_WAIT_ALL(DH%NCID, NF_REQ_ALL, dummy, dummy)
     call netcdf_err(ierr,status)
-    if(status /= 0) then
+    if(status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
-      call wrf_debug ( WARN , TRIM(msg))
+      call wrf_debug(WARN, TRIM(msg))
       return
     endif
-    deallocate(dummy)
 
-    ierr = nfmpi_buffer_detach(DH%NCID)
+    ierr = NFMPI_BUFFER_DETACH(DH%NCID)
     call netcdf_err(ierr,status)
-    if(status /= 0) then
+    if(status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
-      call wrf_debug ( WARN , TRIM(msg))
+      call wrf_debug(WARN, TRIM(msg))
       return
     endif
     
