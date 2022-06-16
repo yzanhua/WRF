@@ -92,7 +92,7 @@ module wrf_data_pnc
 ! Whether pnetcdf file is in collective (.true.) or independent mode
 ! Collective mode is the default.
     logical                               :: Collective
-    logical                               :: BputEnabled
+    logical                               :: BputEnabled = .false.
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -962,7 +962,7 @@ subroutine ext_pnc_bput_wait_and_detach(hndl)
       call wrf_debug(WARN, TRIM(msg))
       return
     endif
-    
+    DH%BputEnabled = .false.
   endif
     
 end subroutine ext_pnc_bput_wait_and_detach
