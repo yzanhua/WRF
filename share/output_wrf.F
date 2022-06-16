@@ -104,7 +104,7 @@
 
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
 
-    LOGICAL :: bput_use
+    LOGICAL :: bput_enabled
     INTEGER*8 :: bput_buffer_size
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
@@ -1009,13 +1009,12 @@ endif
           switch .EQ. restart_only    ) THEN
       
       bput_buffer_size = 0
-      bput_use = grid%use_bput_for_pnetcdf .AND. (.NOT.dryrun) .AND. (grid%io_form_history == 11) .AND. (grid%io_form_restart == 11)
+      bput_enabled = grid%enable_pnetcdf_bput .AND. (.NOT.dryrun) .AND. (grid%io_form_history == 11) .AND. (grid%io_form_restart == 11)
       
-      IF (bput_use) then
-        CALL BputGetBufferSize(grid, switch, bput_buffer_size)
+      IF (bput_enabled) then
+        CALL BputCalcBufferSize(grid, switch, bput_buffer_size)
         write(wrf_err_message,*) '****: calculated buffer size', bput_buffer_size
         call wrf_debug(0 , TRIM(wrf_err_message))
-        
       ENDIF
       call BputSetBufferSize(fid, bput_buffer_size)
      
@@ -1551,7 +1550,7 @@ endif
       ENDIF
     ENDIF
 
-    IF (bput_use) THEN
+    IF (bput_enabled) THEN
       call BputWaitAndDetach(fid)
     ENDIF
 
@@ -1615,7 +1614,7 @@ endif
     RETURN
   END SUBROUTINE traverse_statevars_debug
 
-  SUBROUTINE BputGetBufferSize(grid, switch, totalSizeOut)
+  SUBROUTINE BputCalcBufferSize(grid, switch, totalSizeOut)
     USE module_domain_type, ONLY : fieldlist
     USE module_domain
     USE module_io
@@ -1728,7 +1727,7 @@ endif
       INTEGER :: ndim, ierr
 
       ierr = 0
-      CALL BputGetDim(TRIM(ptr%MemoryOrder), ndim, ierr)
+      CALL BputInqDim(TRIM(ptr%MemoryOrder), ndim, ierr)
       IF (ierr < 0) THEN
         sizeOut = -1
         return
@@ -1770,7 +1769,7 @@ endif
       RETURN
     END SUBROUTINE BputGetSizeOfType
 
-    SUBROUTINE BputGetDim(MemoryOrder,NDim,Status)
+    SUBROUTINE BputInqDim(MemoryOrder,NDim,Status)
       CHARACTER*(*) ,INTENT(IN)  :: MemoryOrder
       INTEGER       ,INTENT(OUT) :: NDim
       INTEGER       ,INTENT(OUT) :: Status
@@ -1793,6 +1792,6 @@ endif
         END SELECT
       Status = 0
       RETURN
-    END SUBROUTINE BputGetDim
+    END SUBROUTINE BputInqDim
   
-  END SUBROUTINE BputGetBufferSize
+  END SUBROUTINE BputCalcBufferSize
