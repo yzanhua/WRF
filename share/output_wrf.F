@@ -105,7 +105,6 @@
     LOGICAL, EXTERNAL :: wrf_dm_on_monitor
 
     LOGICAL :: bput_enabled
-    INTEGER*8 :: bput_buffer_size
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
     CALL wrf_debug( 300 , wrf_err_message )
@@ -1007,16 +1006,24 @@ endif
          (first_history .LE. switch .AND. switch .LE. last_history ) .OR. &
           switch .EQ. restart_only    ) THEN
       
-      bput_buffer_size = 0
       bput_enabled = grid%enable_pnetcdf_bput .AND. (.NOT.dryrun) .AND. (grid%io_form_history == 11) .AND. (grid%io_form_restart == 11)
       
       IF (bput_enabled) then
-        CALL BputCalcBufferSize(grid, switch, bput_buffer_size)
-        write(wrf_err_message,*) '****: calculated buffer size', bput_buffer_size
-        call wrf_debug(0 , TRIM(wrf_err_message))
+        IF (switch .EQ. history_only) THEN
+          CALL BputCalcBufferSize(grid, switch, bput_buffer_size_history)
+          write(wrf_err_message,*) '****: calculated buffer size history', bput_buffer_size_history
+          call wrf_debug(0 , TRIM(wrf_err_message))
+          call BputSetBufferSize(fid, bput_buffer_size_history)
+
+        ELSE IF (switch .EQ. restart_only) THEN
+          CALL BputCalcBufferSize(grid, switch, bput_buffer_size_restart)
+          write(wrf_err_message,*) '****: calculated buffer size restart', bput_buffer_size_restart
+          call wrf_debug(0 , TRIM(wrf_err_message))
+          call BputSetBufferSize(fid, bput_buffer_size_restart)
+        ENDIF
+
       ENDIF
-      call BputSetBufferSize(fid, bput_buffer_size)
-     
+
 
       newswitch = switch
       p => grid%head_statevars%next
@@ -1609,26 +1616,33 @@ endif
     RETURN
   END SUBROUTINE traverse_statevars_debug
 
-  SUBROUTINE BputCalcBufferSize(grid, switch, totalSizeOut)
+  SUBROUTINE BputCalcBufferSize(grid, switch, totalSize)
     USE module_domain_type, ONLY : fieldlist
     USE module_domain
     USE module_io
     IMPLICIT NONE
 
     INTEGER, PARAMETER :: DateStrLen = 19
-    TYPE(domain), INTENT(in) :: grid
+    TYPE(domain), INTENT(IN) :: grid
     INTEGER, INTENT(IN) :: switch
-    INTEGER*8, INTENT(out):: totalSizeOut
+    INTEGER*8, INTENT(INOUT):: totalSize
 
     ! temp variables
     INTEGER :: gridSize, typeSize
     INTEGER newSwitch, itrace
     TYPE(fieldlist), POINTER :: p
+
+    IF (totalSize > -1) THEN !size already calculated
+      WRITE(wrf_err_message,*)'****: size already calculated skipped'
+      CALL wrf_debug( 0 , wrf_err_message )
+      RETURN
+    ENDIF
+
     p => grid%head_statevars%next
     
     ! init variables
     newSwitch = switch
-    totalSizeOut = 0
+    totalSize = 0
 
     DO WHILE ( ASSOCIATED( p ) )
       IF ( p%ProcOrient .NE. 'X' .AND. p%ProcOrient .NE. 'Y' ) THEN
@@ -1640,7 +1654,7 @@ endif
               typeSize = 4 ! init default type size
               CALL BputGetSizeOfType(p%Type, typeSize)
 
-              totalSizeOut = totalSizeOut + gridSize * typeSize
+              totalSize = totalSize + gridSize * typeSize
             ENDIF
           ENDIF
         ELSE IF (p%Ndim .EQ. 1) THEN
@@ -1652,7 +1666,7 @@ endif
                   typeSize = 4 ! init default type size
                   CALL BputGetSizeOfType(p%Type, typeSize)
 
-                  totalSizeOut = totalSizeOut + gridSize * typeSize
+                  totalSize = totalSize + gridSize * typeSize
                 ENDIF
               ENDIF
             ENDIF
@@ -1669,7 +1683,7 @@ endif
                   typeSize = 4 ! init default type size
                   CALL BputGetSizeOfType(p%Type, typeSize)
 
-                  totalSizeOut = totalSizeOut + gridSize * typeSize
+                  totalSize = totalSize + gridSize * typeSize
                 ENDIF
               ENDIF
             ENDIF
@@ -1686,7 +1700,7 @@ endif
                   typeSize = 4 ! init default type size
                   CALL BputGetSizeOfType(p%Type, typeSize)
 
-                  totalSizeOut = totalSizeOut + gridSize * typeSize
+                  totalSize = totalSize + gridSize * typeSize
                 ENDIF
               ENDIF
             ENDIF
@@ -1701,7 +1715,7 @@ endif
                   typeSize = 4 ! init default type size
                   CALL BputGetSizeOfType(p%Type, typeSize)
 
-                  totalSizeOut = totalSizeOut + gridSize * typeSize
+                  totalSize = totalSize + gridSize * typeSize
                 ENDIF
               ENDIF
             ENDDO
@@ -1712,7 +1726,7 @@ endif
     ENDDO
 
     ! DateStr
-    totalSizeOut = totalSizeOut + DateStrLen
+    totalSize = totalSize + DateStrLen
 
     contains
     SUBROUTINE BputGetGridSize(ptr, sizeOut)
