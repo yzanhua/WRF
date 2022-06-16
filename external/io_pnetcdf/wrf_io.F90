@@ -909,6 +909,7 @@ subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   use ext_pnc_support_routines
   implicit none
   include 'wrf_status_codes.h'
+#  include "pnetcdf.inc"
   integer, INTENT(IN) :: hndl
   integer, INTENT(IN) :: bput_buffer_size
   type(wrf_data_handle), pointer :: DH
@@ -934,9 +935,9 @@ end subroutine ext_pnc_bput_set_buffer_size
 subroutine ext_pnc_bput_wait_and_detach(hndl)
   use wrf_data_pnc
   use ext_pnc_support_routines
-  use pnetcdf
   implicit none
   include 'wrf_status_codes.h'
+#  include "pnetcdf.inc"
   integer, INTENT(IN)  :: hndl
   type(wrf_data_handle), pointer :: DH
   integer :: ierr, status, dummy(0)
