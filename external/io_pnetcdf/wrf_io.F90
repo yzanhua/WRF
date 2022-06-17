@@ -84,7 +84,6 @@ module wrf_data_pnc
     character (VarNameLen), pointer       :: VarNames(:)
     integer                               :: CurrentVariable  !Only used for read
     integer                               :: NumVars
-
 ! first_operation is set to .TRUE. when a new handle is allocated 
 ! or when open-for-write or open-for-read are committed.  It is set 
 ! to .FALSE. when the first field is read or written.  
@@ -372,10 +371,7 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   integer(KIND=MPI_OFFSET_KIND)         :: VCount(2)
   integer                               :: stat
   integer                               :: i
-  integer :: use_bput, bput_req
-  use_bput = 0
-  bput_req = 0
-
+  integer                               :: BputReqID
 
   DH => WrfDataHandles(DataHandle)
   call DateCheck(DateStr,Status)
@@ -407,16 +403,14 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     VStart(2) = TimeIndex
     VCount(1) = DateStrLen
     VCount(2) = 1
-
     if (DH%BputEnabled) then
-      stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, bput_req)
+      stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, BputReqID)
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
     endif
-
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
-      write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__, DH%NCID
+      write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__ 
       call wrf_debug ( WARN , TRIM(msg))
       return
     endif
@@ -713,16 +707,16 @@ VCount(:) = 1
   DH => WrfDataHandles(DataHandle) 
   select case (FieldType)
     case (WRF_REAL)
-      call ext_pnc_RealFieldIO(DH%Collective,IO,NCID,VarID,&
+      call ext_pnc_RealFieldIO    (DH%Collective,IO,NCID,VarID,&
                             VStart,VCount,DH%BputEnabled,XField,Status)
     case (WRF_DOUBLE)
-      call ext_pnc_DoubleFieldIO(DH%Collective,IO,NCID,VarID,&
+      call ext_pnc_DoubleFieldIO  (DH%Collective,IO,NCID,VarID,&
                             VStart,VCount,DH%BputEnabled,XField,Status)
     case (WRF_INTEGER)
-      call ext_pnc_IntFieldIO(DH%Collective,IO,NCID,VarID,&
+      call ext_pnc_IntFieldIO     (DH%Collective,IO,NCID,VarID,&
                             VStart,VCount,DH%BputEnabled,XField,Status)
     case (WRF_LOGICAL)
-      call ext_pnc_LogicalFieldIO(DH%Collective,IO,NCID,VarID,&
+      call ext_pnc_LogicalFieldIO (DH%Collective,IO,NCID,VarID,&
                             VStart,VCount,DH%BputEnabled,XField,Status)
       if(Status /= WRF_NO_ERR) return
     case default
@@ -941,7 +935,7 @@ subroutine ext_pnc_bput_wait_and_detach(hndl)
   integer, INTENT(IN)  :: hndl
   type(wrf_data_handle), pointer :: DH
   integer :: ierr, status, dummy(0)
-  
+
   call GetDH(hndl,DH,ierr)
   if (DH%BputEnabled) then
     write(msg,*) '****: wait and detch called on', DH%NCID
@@ -964,7 +958,6 @@ subroutine ext_pnc_bput_wait_and_detach(hndl)
     endif
     DH%BputEnabled = .false.
   endif
-    
 end subroutine ext_pnc_bput_wait_and_detach
 
 subroutine ext_pnc_open_for_read(DatasetName, Comm1, Comm2, SysDepInfo, DataHandle, Status)

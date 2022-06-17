@@ -11,7 +11,6 @@
 !    USE module_date_time
     USE module_model_constants
     USE module_utility
-
     IMPLICIT NONE
 #include "wrf_io_flags.h"
 #include "wrf_status_codes.h"
@@ -1008,23 +1007,19 @@ endif
           switch .EQ. restart_only    ) THEN
       
       bput_enabled = grid%enable_pnetcdf_bput .AND. (.NOT.dryrun) .AND. (grid%io_form_history == 11) .AND. (grid%io_form_restart == 11)
-      
       IF (bput_enabled) then
         IF (switch .EQ. history_only) THEN
           CALL BputCalcBufferSize(grid, switch, bput_buffer_size_history)
           write(wrf_err_message,*) '****: calculated buffer size history', bput_buffer_size_history
           call wrf_debug(0 , TRIM(wrf_err_message))
           call BputSetBufferSize(fid, bput_buffer_size_history)
-
         ELSE IF (switch .EQ. restart_only) THEN
           CALL BputCalcBufferSize(grid, switch, bput_buffer_size_restart)
           write(wrf_err_message,*) '****: calculated buffer size restart', bput_buffer_size_restart
           call wrf_debug(0 , TRIM(wrf_err_message))
           call BputSetBufferSize(fid, bput_buffer_size_restart)
         ENDIF
-
       ENDIF
-
 
       newswitch = switch
       p => grid%head_statevars%next

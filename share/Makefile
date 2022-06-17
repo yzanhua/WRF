@@ -18,7 +18,7 @@ MODULES1=                               \
         module_interp_nmm.o             \
         module_interp_store.o           \
         module_string_tools.o           \
-        module_MPP.o
+        module_MPP.o 
 
 MODULES2=                               \
         module_date_time.o              \
@@ -30,7 +30,7 @@ MODULES3=                               \
         module_io_domain.o              
 
 MODULES4=                               \
-        module_optional_input.o
+        module_optional_input.o         
 
 MODULES = $(MODULES1) $(MODULES2) $(MODULES3) $(MODULES4)
 
