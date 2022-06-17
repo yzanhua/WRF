@@ -58,13 +58,11 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,
   if(IO == 'write') then
     if(EnableBput)then
       stat = NFMPI_BPUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
+    else if(Coll)then
+      stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
-      if(Coll)then
-        stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-      else
-        stat = NFMPI_PUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-      endif
-    endif
+      stat = NFMPI_PUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+    end if
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -105,13 +103,11 @@ subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Dat
   if(IO == 'write') then
     if(EnableBput)then
       stat = NFMPI_BPUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
-    else
-      if(Coll)then
-        stat = NFMPI_PUT_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-      else
-        stat = NFMPI_PUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-      endif
-    endif
+    else if(Coll)then
+      stat = NFMPI_PUT_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+   else
+      stat = NFMPI_PUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data)
+   endif
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -152,12 +148,10 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,S
   if(IO == 'write') then
     if(EnableBput)then
       stat = NFMPI_BPUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
+    else if(Coll)then
+      stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
-      if(Coll)then
-        stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-      else
-        stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data)
-      endif
+      stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     endif
   else
     if(Coll)then
@@ -219,13 +213,11 @@ subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Da
     enddo
     if(EnableBput)then
       stat = NFMPI_BPUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer,BputReqID)
-    else
-      if(Coll)then
-        stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
-      else
-        stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
-      endif
-    endif
+    else if(Coll)then
+      stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
+   else
+      stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
+   end if
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
