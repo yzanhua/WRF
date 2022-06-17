@@ -24,7 +24,7 @@
  io_form_restart                     = 2
  io_form_input                       = 2
  io_form_boundary                    = 2
- use_bput_for_pnetcdf                = .false.
+ enable_pnetcdf_bput                 = .false.
  /
 
  &domains
