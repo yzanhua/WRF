@@ -96,7 +96,6 @@ SUBROUTINE BputWaitAndDetach(fid)
 #endif
 END SUBROUTINE BputWaitAndDetach
 
-
 !--- ioinit
 
 SUBROUTINE wrf_ioinit( Status )
