@@ -1006,14 +1006,18 @@ endif
          (first_history .LE. switch .AND. switch .LE. last_history ) .OR. &
           switch .EQ. restart_only    ) THEN
       
-      bput_enabled = grid%enable_pnetcdf_bput .AND. (.NOT.dryrun) .AND. (grid%io_form_history == 11) .AND. (grid%io_form_restart == 11)
-      IF (bput_enabled) then
-        IF (switch .EQ. history_only) THEN
+      bput_enabled = grid%enable_pnetcdf_bput .AND. (.NOT.dryrun)
+      IF (switch .EQ. history_only) THEN
+        bput_enabled = bput_enabled .AND. (grid%io_form_history == 11)
+        IF (bput_enabled) THEN
           CALL BputCalcBufferSize(grid, switch, bput_buffer_size_history)
           write(wrf_err_message,*) '****: calculated buffer size history', bput_buffer_size_history
           call wrf_debug(0 , TRIM(wrf_err_message))
           call BputSetBufferSize(fid, bput_buffer_size_history)
-        ELSE IF (switch .EQ. restart_only) THEN
+        ENDIF
+      ELSE IF (switch .EQ. restart_only) THEN
+        bput_enabled = bput_enabled .AND. (grid%io_form_restart == 11)
+        IF (bput_enabled) THEN
           CALL BputCalcBufferSize(grid, switch, bput_buffer_size_restart)
           write(wrf_err_message,*) '****: calculated buffer size restart', bput_buffer_size_restart
           call wrf_debug(0 , TRIM(wrf_err_message))
