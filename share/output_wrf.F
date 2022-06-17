@@ -1552,7 +1552,7 @@ endif
     ENDIF
 
     IF (bput_enabled) THEN
-      call BputWaitAndDetach(fid)
+      call BputWait(fid)
     ENDIF
 
 #if ( (EM_CORE == 1) && (DA_CORE != 1) )
@@ -1632,7 +1632,7 @@ endif
     TYPE(fieldlist), POINTER :: p
 
     IF (totalSize > -1) THEN !size already calculated
-      WRITE(wrf_err_message,*)'****: size already calculated skipped'
+      WRITE(wrf_err_message,*)'****: buffer size already calculated, skipped'
       CALL wrf_debug( 0 , wrf_err_message )
       RETURN
     ENDIF

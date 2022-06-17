@@ -907,14 +907,18 @@ subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   integer, INTENT(IN) :: hndl
   integer, INTENT(IN) :: bput_buffer_size
   type(wrf_data_handle), pointer :: DH
-  integer :: ierr, status
+  integer :: ierr=0, status=0
 
   call GetDH(hndl,DH,ierr)
-  write(msg,*) '****: attch to', DH%NCID, 'amount:', bput_buffer_size
-  call wrf_debug(0 , TRIM(msg))
+
   if (bput_buffer_size > 0) then
-    ierr = NFMPI_BUFFER_ATTACH(DH%NCID, bput_buffer_size)
-    DH%BputEnabled = .true.
+    if(.NOT. DH%BputEnabled) then
+      ierr = NFMPI_BUFFER_ATTACH(DH%NCID, bput_buffer_size)
+      write(msg,*) '****: attch to', DH%NCID, 'amount:', bput_buffer_size
+      call wrf_debug(0 , TRIM(msg))
+      DH%BputEnabled = .true.
+    endif
+
     call netcdf_err(ierr,status)
     if(status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -926,7 +930,7 @@ subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   endif
 end subroutine ext_pnc_bput_set_buffer_size
 
-subroutine ext_pnc_bput_wait_and_detach(hndl)
+subroutine ext_pnc_bput_wait(hndl)
   use wrf_data_pnc
   use ext_pnc_support_routines
   implicit none
@@ -938,9 +942,8 @@ subroutine ext_pnc_bput_wait_and_detach(hndl)
 
   call GetDH(hndl,DH,ierr)
   if (DH%BputEnabled) then
-    write(msg,*) '****: wait and detch called on', DH%NCID
+    write(msg,*) '****: wait called on', DH%NCID
     call wrf_debug(WARN , TRIM(msg))
-
     ierr = NFMPI_WAIT_ALL(DH%NCID, NF_REQ_ALL, dummy, dummy)
     call netcdf_err(ierr,status)
     if(status /= WRF_NO_ERR) then
@@ -948,17 +951,8 @@ subroutine ext_pnc_bput_wait_and_detach(hndl)
       call wrf_debug(WARN, TRIM(msg))
       return
     endif
-
-    ierr = NFMPI_BUFFER_DETACH(DH%NCID)
-    call netcdf_err(ierr,status)
-    if(status /= WRF_NO_ERR) then
-      write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
-      call wrf_debug(WARN, TRIM(msg))
-      return
-    endif
-    DH%BputEnabled = .false.
   endif
-end subroutine ext_pnc_bput_wait_and_detach
+end subroutine ext_pnc_bput_wait
 
 subroutine ext_pnc_open_for_read(DatasetName, Comm1, Comm2, SysDepInfo, DataHandle, Status)
   use wrf_data_pnc
@@ -1481,6 +1475,20 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
     write(msg,*) 'Fatal error BAD FILE STATUS in ext_pnc_ioclose ',__FILE__,', line', __LINE__
     call wrf_debug ( FATAL , TRIM(msg))
     return
+  endif
+
+  ! Detach Bput Buffer
+  if (DH%BputEnabled) then
+    write(msg,*) '****: NFMPI_BUFFER_DETACH called on', DH%NCID
+    call wrf_debug ( WARN , TRIM(msg))
+    stat = NFMPI_BUFFER_DETACH(DH%NCID)
+    call netcdf_err(stat,Status)
+    if(Status /= WRF_NO_ERR) then
+      write(msg,*) 'NetCDF error in ext_pnc_ioclose ',__FILE__,', line', __LINE__
+      call wrf_debug ( WARN , TRIM(msg))
+      return
+    endif
+    DH%BputEnabled = .false.
   endif
 
   stat = NFMPI_CLOSE(DH%NCID)

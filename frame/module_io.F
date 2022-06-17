@@ -85,16 +85,16 @@ SUBROUTINE BputSetBufferSize(fid, bput_buffer_size)
 #endif
 END SUBROUTINE BputSetBufferSize
 
-SUBROUTINE BputWaitAndDetach(fid)
+SUBROUTINE BputWait(fid)
   INTEGER, INTENT(IN) :: fid
   INTEGER :: Hndl
   INTEGER :: Hopened
   LOGICAL :: for_out
 #ifdef PNETCDF
   call get_handle(Hndl, Hopened, for_out, fid)
-  call ext_pnc_bput_wait_and_detach(Hndl)
+  call ext_pnc_bput_wait(Hndl)
 #endif
-END SUBROUTINE BputWaitAndDetach
+END SUBROUTINE BputWait
 
 !--- ioinit
 
