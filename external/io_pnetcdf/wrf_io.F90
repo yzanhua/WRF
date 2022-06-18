@@ -92,6 +92,7 @@ module wrf_data_pnc
 ! Collective mode is the default.
     logical                               :: Collective
     logical                               :: BputEnabled = .false.
+    integer                               :: MPIRank = -1
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -371,7 +372,7 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   integer(KIND=MPI_OFFSET_KIND)         :: VCount(2)
   integer                               :: stat
   integer                               :: i
-  integer                               :: BputReqID
+  integer                               :: BputReqID, MPIRank
 
   DH => WrfDataHandles(DataHandle)
   call DateCheck(DateStr,Status)
@@ -403,8 +404,12 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     VStart(2) = TimeIndex
     VCount(1) = DateStrLen
     VCount(2) = 1
+    call InqMPIRank(DH, MPIRank)
     if (DH%BputEnabled) then
-      stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, BputReqID)
+      if (MPIRank == 0) then
+        stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, BputReqID)
+        call wrf_debug ( WARN , '****: rank 0 called NFMPI_BPUT_VARA_TEXT')
+      endif
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
     endif
@@ -896,7 +901,29 @@ LOGICAL FUNCTION ncd_is_first_operation( DataHandle )
     RETURN
 END FUNCTION ncd_is_first_operation
 
+SUBROUTINE InqMPIRank(DH, Rank)
+  USE wrf_data_pnc
+  TYPE(wrf_data_handle), POINTER, INTENT(IN) :: DH
+  INTEGER, INTENT(OUT):: Rank
+  INTEGER :: ierr
+  IF (DH%MPIRank < 0) THEN
+    CALL MPI_COMM_RANK(DH%Comm, DH%MPIRank, ierr)
+  END IF
+  Rank = DH%MPIRank
+END SUBROUTINE InqMPIRank
+
 end module ext_pnc_support_routines
+
+subroutine ext_pnc_inq_mpi_rank(hndl, rank)
+  use wrf_data_pnc
+  use ext_pnc_support_routines
+  integer, INTENT(IN) :: hndl
+  integer, INTENT(OUT) :: rank
+  type(wrf_data_handle), pointer :: DH
+  integer :: ierr=0
+  call GetDH(hndl,DH,ierr)
+  call InqMPIRank(DH, rank)
+end subroutine ext_pnc_inq_mpi_rank
 
 subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   use wrf_data_pnc
