@@ -1010,16 +1010,12 @@ endif
         bput_enabled = bput_enabled .AND. (grid%io_form_history == 11)
         IF (bput_enabled) THEN
           CALL BputCalcBufferSize(grid, switch, bput_buffer_size_history)
-          write(wrf_err_message,*) '****: calculated buffer size history', bput_buffer_size_history
-          call wrf_debug(0 , TRIM(wrf_err_message))
           call BputSetBufferSize(fid, bput_buffer_size_history)
         ENDIF
       ELSE IF (switch .EQ. restart_only) THEN
         bput_enabled = bput_enabled .AND. (grid%io_form_restart == 11)
         IF (bput_enabled) THEN
           CALL BputCalcBufferSize(grid, switch, bput_buffer_size_restart)
-          write(wrf_err_message,*) '****: calculated buffer size restart', bput_buffer_size_restart
-          call wrf_debug(0 , TRIM(wrf_err_message))
           call BputSetBufferSize(fid, bput_buffer_size_restart)
         ENDIF
       ENDIF
@@ -1633,8 +1629,6 @@ endif
     TYPE(fieldlist), POINTER :: p
 #ifdef PNETCDF
     IF (totalSize > -1) THEN !size already calculated
-      WRITE(wrf_err_message,*)'****: buffer size already calculated, skipped'
-      CALL wrf_debug( 0 , wrf_err_message )
       RETURN
     ENDIF
 

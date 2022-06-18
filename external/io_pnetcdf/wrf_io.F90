@@ -408,7 +408,6 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     if (DH%BputEnabled) then
       if (MPIRank == 0) then
         stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, BputReqID)
-        call wrf_debug ( WARN , '****: rank 0 called NFMPI_BPUT_VARA_TEXT')
       endif
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
@@ -919,8 +918,6 @@ subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   if (bput_buffer_size > 0) then
     if(.NOT. DH%BputEnabled) then
       ierr = NFMPI_BUFFER_ATTACH(DH%NCID, bput_buffer_size)
-      write(msg,*) '****: attch to', DH%NCID, 'amount:', bput_buffer_size
-      call wrf_debug(0 , TRIM(msg))
       DH%BputEnabled = .true.
     endif
 
@@ -947,8 +944,6 @@ subroutine ext_pnc_bput_wait(hndl)
 
   call GetDH(hndl,DH,ierr)
   if (DH%BputEnabled) then
-    write(msg,*) '****: wait called on', DH%NCID
-    call wrf_debug(WARN , TRIM(msg))
     ierr = NFMPI_WAIT_ALL(DH%NCID, NF_REQ_ALL, dummy, dummy)
     call netcdf_err(ierr,status)
     if(status /= WRF_NO_ERR) then
@@ -1484,8 +1479,6 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
 
   ! Detach Bput Buffer
   if (DH%BputEnabled) then
-    write(msg,*) '****: NFMPI_BUFFER_DETACH called on', DH%NCID
-    call wrf_debug ( WARN , TRIM(msg))
     stat = NFMPI_BUFFER_DETACH(DH%NCID)
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
