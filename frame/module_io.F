@@ -94,18 +94,6 @@ SUBROUTINE BputWait(fid)
 #endif
 END SUBROUTINE BputWait
 
-SUBROUTINE PNCInqMPIRank(fid, rank)
-  INTEGER, INTENT(IN) :: fid
-  INTEGER, INTENT(OUT) :: rank
-  INTEGER :: Hndl, Hopened
-  LOGICAL :: for_out
-  rank = -1
-#ifdef PNETCDF
-  call get_handle(Hndl, Hopened, for_out, fid)
-  call ext_pnc_inq_mpi_rank(Hndl, rank)
-#endif
-END SUBROUTINE PNCInqMPIRank
-
 !--- ioinit
 
 SUBROUTINE wrf_ioinit( Status )
