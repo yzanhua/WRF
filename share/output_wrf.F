@@ -1010,7 +1010,7 @@ endif
       IF (switch .EQ. history_only) THEN
         bput_enabled = bput_enabled .AND. (grid%io_form_history == 11)
         IF (bput_enabled) THEN
-          CALL BputCalcBufferSize(grid, fid, switch, bput_buffer_size_history)
+          CALL BputCalcBufferSize(grid, switch, bput_buffer_size_history)
           write(wrf_err_message,*) '****: calculated buffer size history', bput_buffer_size_history
           call wrf_debug(0 , TRIM(wrf_err_message))
           call BputSetBufferSize(fid, bput_buffer_size_history)
@@ -1018,7 +1018,7 @@ endif
       ELSE IF (switch .EQ. restart_only) THEN
         bput_enabled = bput_enabled .AND. (grid%io_form_restart == 11)
         IF (bput_enabled) THEN
-          CALL BputCalcBufferSize(grid, fid, switch, bput_buffer_size_restart)
+          CALL BputCalcBufferSize(grid, switch, bput_buffer_size_restart)
           write(wrf_err_message,*) '****: calculated buffer size restart', bput_buffer_size_restart
           call wrf_debug(0 , TRIM(wrf_err_message))
           call BputSetBufferSize(fid, bput_buffer_size_restart)
@@ -1620,7 +1620,7 @@ endif
     RETURN
   END SUBROUTINE traverse_statevars_debug
 
-  SUBROUTINE BputCalcBufferSize(grid, fid, switch, totalSize)
+  SUBROUTINE BputCalcBufferSize(grid, switch, totalSize)
     USE module_domain_type, ONLY : fieldlist
     USE module_domain
     USE module_io
@@ -1628,7 +1628,7 @@ endif
 
     INTEGER, PARAMETER :: DateStrLen = 19
     TYPE(domain), INTENT(IN) :: grid
-    INTEGER, INTENT(IN) :: fid, switch
+    INTEGER, INTENT(IN) :: switch
     INTEGER*8, INTENT(INOUT):: totalSize
 
     ! temp variables
@@ -1731,8 +1731,7 @@ endif
     ENDDO
 
     ! DateStr
-    CALL PNCInqMPIRank(fid, mpiRank)
-    IF (mpiRank .EQ. 0) totalSize = totalSize + DateStrLen
+    totalSize = totalSize + DateStrLen
 
     contains
     SUBROUTINE BputGetGridSize(ptr, sizeOut)
