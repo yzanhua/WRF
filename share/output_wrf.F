@@ -1636,7 +1636,7 @@ endif
     INTEGER :: newSwitch, itrace
     INTEGER :: mpiRank
     TYPE(fieldlist), POINTER :: p
-
+#ifdef PNETCDF
     IF (totalSize > -1) THEN !size already calculated
       WRITE(wrf_err_message,*)'****: buffer size already calculated, skipped'
       CALL wrf_debug( 0 , wrf_err_message )
@@ -1808,4 +1808,5 @@ endif
       Status = 0
       RETURN
     END SUBROUTINE BputInqDim
+#endif
   END SUBROUTINE BputCalcBufferSize
