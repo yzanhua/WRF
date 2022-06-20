@@ -91,6 +91,11 @@ module wrf_data_pnc
 ! Whether pnetcdf file is in collective (.true.) or independent mode
 ! Collective mode is the default.
     logical                               :: Collective
+
+    ! If BputEnabled is set to .true. then PnetCDF bput calls should be used instead
+    ! of PnetCDF put calls.
+    ! It is also (always) true that: BputEnabled is set to .true. if
+    ! and only if a buffer is correctly attached to the file. (invariant)
     logical                               :: BputEnabled = .false.
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
@@ -708,7 +713,7 @@ VCount(:) = 1
   VCount(1:NDim) = Length(1:NDim)
   VStart(NDim+1) = TimeIndex
   VCount(NDim+1) = 1
-  DH => WrfDataHandles(DataHandle) 
+  DH => WrfDataHandles(DataHandle)
   select case (FieldType)
     case (WRF_REAL)
       call ext_pnc_RealFieldIO    (DH%Collective,IO,NCID,VarID,&
@@ -902,6 +907,8 @@ END FUNCTION ncd_is_first_operation
 
 end module ext_pnc_support_routines
 
+! ext_pnc_bput_set_buffer_size:
+! Set/attach the buffer size used by PnetCDF bput calls.
 subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   use wrf_data_pnc
   use ext_pnc_support_routines
@@ -916,11 +923,12 @@ subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   call GetDH(hndl,DH,ierr)
 
   if (bput_buffer_size > 0) then
-    if(.NOT. DH%BputEnabled) then
+    if(.NOT. DH%BputEnabled) then ! if buffer is not yet attached
       ierr = NFMPI_BUFFER_ATTACH(DH%NCID, bput_buffer_size)
       DH%BputEnabled = .true.
     endif
 
+    ! check error
     call netcdf_err(ierr,status)
     if(status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -932,6 +940,8 @@ subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   endif
 end subroutine ext_pnc_bput_set_buffer_size
 
+! ext_pnc_bput_wait:
+! Wait/block till all PnetCDF bput calls on the file are finished.
 subroutine ext_pnc_bput_wait(hndl)
   use wrf_data_pnc
   use ext_pnc_support_routines
@@ -945,6 +955,8 @@ subroutine ext_pnc_bput_wait(hndl)
   call GetDH(hndl,DH,ierr)
   if (DH%BputEnabled) then
     ierr = NFMPI_WAIT_ALL(DH%NCID, NF_REQ_ALL, dummy, dummy)
+
+    ! check error
     call netcdf_err(ierr,status)
     if(status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -1477,12 +1489,14 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
     return
   endif
 
-  ! Detach Bput Buffer
+  ! Detach bput buffer before file close
   if (DH%BputEnabled) then
     stat = NFMPI_BUFFER_DETACH(DH%NCID)
+
+    ! check error
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
-      write(msg,*) 'NetCDF error in ext_pnc_ioclose ',__FILE__,', line', __LINE__
+      write(msg,*) 'NetCDF error in ext_pnc_ioclose: buffer detach ',__FILE__,', line', __LINE__
       call wrf_debug ( WARN , TRIM(msg))
       return
     endif

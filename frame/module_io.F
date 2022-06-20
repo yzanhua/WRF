@@ -73,6 +73,8 @@ MODULE module_io
     RETURN
   END FUNCTION io_form_for_stream
 
+! BputSetBufferSize:
+! Set the buffer size used by PnetCDF bput calls.
 SUBROUTINE BputSetBufferSize(fid, bput_buffer_size)
   INTEGER, INTENT(IN) :: fid
   INTEGER*8, INTENT(IN) :: bput_buffer_size
@@ -84,6 +86,8 @@ SUBROUTINE BputSetBufferSize(fid, bput_buffer_size)
 #endif
 END SUBROUTINE BputSetBufferSize
 
+! BputWait:
+! Wait/block till all PnetCDF bput calls on the file are finished.
 SUBROUTINE BputWait(fid)
   INTEGER, INTENT(IN) :: fid
   INTEGER :: Hndl, Hopened
