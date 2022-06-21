@@ -57,6 +57,7 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,
 
   if(IO == 'write') then
     if(EnableBput)then
+      ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
     else if(Coll)then
       stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -102,6 +103,7 @@ subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Dat
 
   if(IO == 'write') then
     if(EnableBput)then
+      ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
     else if(Coll)then
       stat = NFMPI_PUT_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -147,6 +149,7 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,S
 
   if(IO == 'write') then
     if(EnableBput)then
+      ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
     else if(Coll)then
       stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -212,6 +215,7 @@ subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Da
       enddo
     enddo
     if(EnableBput)then
+      ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer,BputReqID)
     else if(Coll)then
       stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)

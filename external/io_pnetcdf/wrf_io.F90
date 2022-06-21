@@ -412,6 +412,7 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     CALL MPI_COMM_RANK(DH%Comm, MPIRank, stat)
     if (DH%BputEnabled) then
       if (MPIRank == 0) then
+        ! Calling non-blocking buffered-version API
         stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, BputReqID)
       endif
     else
