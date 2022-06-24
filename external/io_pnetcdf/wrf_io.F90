@@ -97,6 +97,11 @@ module wrf_data_pnc
     ! It is also (always) true that: BputEnabled is set to .true. if
     ! and only if a buffer is correctly attached to the file. (invariant)
     logical                               :: BputEnabled = .false.
+
+    ! a timer to measure costs of posting bput calls
+    real*8                                :: BputTiming = 0
+    ! a counter to collect write amounts
+    integer                               :: WriteAmount = 0
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -113,6 +118,21 @@ integer(KIND=MPI_OFFSET_KIND) function i2offset(i)
   i2offset = i
   return
 end function i2offset
+
+subroutine inqCurrentTime(timef)
+  ! This is a simple subroutine that returns the current time in
+  ! seconds since some arbitrary reference point.  This routine is
+  ! meant to be used to accumulate timing information.
+  implicit none
+  real*8, intent(out):: timef
+#if defined(OLD_TIMERS)
+  integer :: ic,ir
+  call system_clock(count=ic,count_rate=ir)
+  timef=real(ic)/real(ir)
+#else
+  call hires_timer(timef)
+#endif
+end subroutine inqCurrentTime
 
 subroutine allocHandle(DataHandle,DH,Comm,Status)
   use wrf_data_pnc
@@ -414,10 +434,13 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
       if (MPIRank == 0) then
         ! Calling non-blocking buffered-version API
         stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, BputReqID)
+        DH%WriteAmount = DH%WriteAmount + DateStrLen
       endif
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
+      DH%WriteAmount = DH%WriteAmount + DateStrLen
     endif
+
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__ 
@@ -697,6 +720,9 @@ subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
   integer,dimension(NVarDims)               :: VStart
   integer,dimension(NVarDims)               :: VCount
   type(wrf_data_handle)      ,pointer       :: DH
+  real*8                                    :: timef = 0
+  integer                                   :: IOAmountLocal
+  real                                      :: dummy
 
   call GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   if(Status /= WRF_NO_ERR) then
@@ -715,19 +741,24 @@ VCount(:) = 1
   VStart(NDim+1) = TimeIndex
   VCount(NDim+1) = 1
   DH => WrfDataHandles(DataHandle)
+  IOAmountLocal = VCount(1) * VCount(2) * VCount(3) * VCount(4)
   select case (FieldType)
     case (WRF_REAL)
       call ext_pnc_RealFieldIO    (DH%Collective,IO,NCID,VarID,&
-                            VStart,VCount,DH%BputEnabled,XField,Status)
+                            VStart,VCount,DH%BputEnabled,XField,Status,timef)
+      IOAmountLocal = IOAmountLocal * sizeof(dummy)
     case (WRF_DOUBLE)
       call ext_pnc_DoubleFieldIO  (DH%Collective,IO,NCID,VarID,&
-                            VStart,VCount,DH%BputEnabled,XField,Status)
+                            VStart,VCount,DH%BputEnabled,XField,Status,timef)
+      IOAmountLocal = IOAmountLocal * sizeof(timef)
     case (WRF_INTEGER)
       call ext_pnc_IntFieldIO     (DH%Collective,IO,NCID,VarID,&
-                            VStart,VCount,DH%BputEnabled,XField,Status)
+                            VStart,VCount,DH%BputEnabled,XField,Status,timef)
+      IOAmountLocal = IOAmountLocal * sizeof(IOAmountLocal)
     case (WRF_LOGICAL)
       call ext_pnc_LogicalFieldIO (DH%Collective,IO,NCID,VarID,&
-                            VStart,VCount,DH%BputEnabled,XField,Status)
+                            VStart,VCount,DH%BputEnabled,XField,Status,timef)
+      IOAmountLocal = IOAmountLocal * sizeof(IOAmountLocal)
       if(Status /= WRF_NO_ERR) return
     case default
 !for wrf_complex, double_complex
@@ -736,6 +767,8 @@ VCount(:) = 1
       call wrf_debug ( WARN , TRIM(msg))
       return
   end select
+  DH%BputTiming = DH%BputTiming + timef
+  if (IO == 'write') DH%WriteAmount = DH%WriteAmount + IOAmountLocal
   return
 end subroutine FieldIO
 
@@ -1042,6 +1075,7 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
   integer                                :: NumVars
   integer                                :: i
   character (NF_MAX_NAME)                :: Name
+  real*8                                 :: timef, timef1
 
   if(WrfIOnotInitialized) then
     Status = WRF_IO_NOT_INITIALIZED 
@@ -1055,7 +1089,14 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+
+  call inqCurrentTime(timef1)
   stat = NFMPI_OPEN(Comm, FileName, NF_NOWRITE, MPI_INFO_NULL, DH%NCID)
+  call inqCurrentTime(timef)
+  timef = timef - timef1
+  write(msg,*) 'Timing for openning file ', TRIM(FileName), timef, ' :open_for_read_begin'
+  call wrf_debug ( WARN , TRIM(msg))
+
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -1175,6 +1216,7 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
   integer                                :: NumVars
   integer                                :: i
   character (NF_MAX_NAME)                :: Name
+  real*8                                 :: timef, timef1
 
   if(WrfIOnotInitialized) then
     Status = WRF_IO_NOT_INITIALIZED 
@@ -1188,7 +1230,14 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+
+  call inqCurrentTime(timef1)
   stat = NFMPI_OPEN(Comm, FileName, NF_WRITE, MPI_INFO_NULL, DH%NCID)
+  call inqCurrentTime(timef)
+  timef = timef - timef1
+  write(msg,*) 'Timing for openning file ', TRIM(FileName), timef, ' :open_for_update'
+  call wrf_debug ( WARN , TRIM(msg))
+
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -1304,6 +1353,7 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   character*1024                    :: newFileName
   integer                           :: gridid
   integer local_communicator_x, ntasks_x
+  real*8                            :: timef, timef1
 
   if(WrfIOnotInitialized) then
     Status = WRF_IO_NOT_INITIALIZED 
@@ -1334,7 +1384,13 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
 !     if(newFileName(i:i) == '-') newFileName(i:i) = '_'
      if(newFileName(i:i) == ':') newFileName(i:i) = '_'
   enddo
+  call inqCurrentTime(timef1)
   stat = NFMPI_CREATE(Comm, newFileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
+  call inqCurrentTime(timef)
+  timef = timef - timef1
+  write(msg,*) 'Timing for creating file ', TRIM(FileName), timef
+  call wrf_debug ( WARN , TRIM(msg))
+
 ! stat = NFMPI_CREATE(Comm, newFileName, NF_64BIT_OFFSET, info, DH%NCID)
   call mpi_info_free( info, ierr)
 #else
@@ -1344,7 +1400,14 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   call mpi_info_create( info, ierr )
 !  call mpi_info_set(info,'cd_buffer_size','4194304',ierr)
   call mpi_info_set(info,'cd_buffer_size','8388608',ierr)
+
+  call inqCurrentTime(timef1)
   stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
+  call inqCurrentTime(timef)
+  timef = timef - timef1
+  write(msg,*) 'Timing for creating file ', TRIM(FileName), timef
+  call wrf_debug ( WARN , TRIM(msg))
+
   call mpi_info_free( info, ierr)
 !
 !!!!!!!!!!!!!!! 
@@ -1491,6 +1554,7 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   endif
 
   ! Detach bput buffer before file close
+  ! Print timing message
   if (DH%BputEnabled) then
     stat = NFMPI_BUFFER_DETACH(DH%NCID)
 
@@ -1502,7 +1566,20 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
       return
     endif
     DH%BputEnabled = .false.
+
+    write(msg,*) 'Timing for all bput calls for file ', TRIM(DH%FileName), DH%BputTiming
+    call wrf_debug ( WARN , TRIM(msg))
+    DH%BputTiming = 0
   endif
+
+  ! Print write amount
+  write(msg,*) 'Write amount for file ', TRIM(DH%FileName), DH%WriteAmount
+  call wrf_debug ( WARN , TRIM(msg))
+
+  stat = nfmpi_inq_put_size(DH%NCID, DH%WriteAmount)
+  write(msg,*) 'Write amount from PnetCDF API for file ', TRIM(DH%FileName), DH%WriteAmount
+  call wrf_debug ( WARN , TRIM(msg))
+  DH%WriteAmount = 0
 
   stat = NFMPI_CLOSE(DH%NCID)
   call netcdf_err(stat,Status)
