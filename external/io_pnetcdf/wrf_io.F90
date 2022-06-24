@@ -100,8 +100,6 @@ module wrf_data_pnc
 
     ! a timer to measure costs of posting bput calls
     real*8                                :: BputTiming = 0
-    ! a counter to collect write amounts
-    integer                               :: WriteAmount = 0
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -434,11 +432,9 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
       if (MPIRank == 0) then
         ! Calling non-blocking buffered-version API
         stat = NFMPI_BPUT_VARA_TEXT(DH%NCID, DH%TimesVarID, VStart, VCount, DateStr, BputReqID)
-        DH%WriteAmount = DH%WriteAmount + DateStrLen
       endif
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
-      DH%WriteAmount = DH%WriteAmount + DateStrLen
     endif
 
     call netcdf_err(stat,Status)
@@ -721,8 +717,6 @@ subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
   integer,dimension(NVarDims)               :: VCount
   type(wrf_data_handle)      ,pointer       :: DH
   real*8                                    :: timef = 0
-  integer                                   :: IOAmountLocal
-  real                                      :: dummy
 
   call GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   if(Status /= WRF_NO_ERR) then
@@ -741,24 +735,19 @@ VCount(:) = 1
   VStart(NDim+1) = TimeIndex
   VCount(NDim+1) = 1
   DH => WrfDataHandles(DataHandle)
-  IOAmountLocal = VCount(1) * VCount(2) * VCount(3) * VCount(4)
   select case (FieldType)
     case (WRF_REAL)
       call ext_pnc_RealFieldIO    (DH%Collective,IO,NCID,VarID,&
                             VStart,VCount,DH%BputEnabled,XField,Status,timef)
-      IOAmountLocal = IOAmountLocal * sizeof(dummy)
     case (WRF_DOUBLE)
       call ext_pnc_DoubleFieldIO  (DH%Collective,IO,NCID,VarID,&
                             VStart,VCount,DH%BputEnabled,XField,Status,timef)
-      IOAmountLocal = IOAmountLocal * sizeof(timef)
     case (WRF_INTEGER)
       call ext_pnc_IntFieldIO     (DH%Collective,IO,NCID,VarID,&
                             VStart,VCount,DH%BputEnabled,XField,Status,timef)
-      IOAmountLocal = IOAmountLocal * sizeof(IOAmountLocal)
     case (WRF_LOGICAL)
       call ext_pnc_LogicalFieldIO (DH%Collective,IO,NCID,VarID,&
                             VStart,VCount,DH%BputEnabled,XField,Status,timef)
-      IOAmountLocal = IOAmountLocal * sizeof(IOAmountLocal)
       if(Status /= WRF_NO_ERR) return
     case default
 !for wrf_complex, double_complex
@@ -768,7 +757,6 @@ VCount(:) = 1
       return
   end select
   DH%BputTiming = DH%BputTiming + timef
-  if (IO == 'write') DH%WriteAmount = DH%WriteAmount + IOAmountLocal
   return
 end subroutine FieldIO
 
@@ -1525,6 +1513,7 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
   integer                           :: stat
+  integer                           :: WriteAmount
 
   call GetDH(DataHandle,DH,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1572,14 +1561,9 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
     DH%BputTiming = 0
   endif
 
-  ! Print write amount
-  write(msg,*) 'Write amount for file ', TRIM(DH%FileName), DH%WriteAmount
+  stat = nfmpi_inq_put_size(DH%NCID, WriteAmount)
+  write(msg,*) 'Write amount from nfmpi_inq_put_size for file ', TRIM(DH%FileName), WriteAmount
   call wrf_debug ( WARN , TRIM(msg))
-
-  stat = nfmpi_inq_put_size(DH%NCID, DH%WriteAmount)
-  write(msg,*) 'Write amount from PnetCDF API for file ', TRIM(DH%FileName), DH%WriteAmount
-  call wrf_debug ( WARN , TRIM(msg))
-  DH%WriteAmount = 0
 
   stat = NFMPI_CLOSE(DH%NCID)
   call netcdf_err(stat,Status)
