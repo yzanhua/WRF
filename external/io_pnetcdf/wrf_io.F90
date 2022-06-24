@@ -1094,7 +1094,7 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
   stat = NFMPI_OPEN(Comm, FileName, NF_NOWRITE, MPI_INFO_NULL, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,*) 'Timing for openning file ', TRIM(FileName), timef, ' :open_for_read_begin'
+  write(msg,*) 'Timing for opening file ', TRIM(FileName), timef, ' :open_for_read_begin'
   call wrf_debug ( WARN , TRIM(msg))
 
   call netcdf_err(stat,Status)
@@ -1235,7 +1235,7 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
   stat = NFMPI_OPEN(Comm, FileName, NF_WRITE, MPI_INFO_NULL, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,*) 'Timing for openning file ', TRIM(FileName), timef, ' :open_for_update'
+  write(msg,*) 'Timing for opening file ', TRIM(FileName), timef, ' :open_for_update'
   call wrf_debug ( WARN , TRIM(msg))
 
   call netcdf_err(stat,Status)
