@@ -33,7 +33,7 @@
 !*  Date:    October 6, 2000
 !*
 !*----------------------------------------------------------------------------
-subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,Status)
+subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,Status,Timef)
   use wrf_data_pnc
   use ext_pnc_support_routines
   implicit none
@@ -48,7 +48,9 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,
   logical                     ,intent(in)    :: EnableBput
   real, dimension(*)          ,intent(inout) :: Data
   integer                     ,intent(out)   :: Status
+  real*8                      ,intent(out)   :: Timef
   integer                                    :: stat
+  real*8                                     :: CurrTime
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
   integer :: BputReqID
@@ -57,8 +59,11 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,
 
   if(IO == 'write') then
     if(EnableBput)then
+      call inqCurrentTime(Timef)
       ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
+      call inqCurrentTime(CurrTime)
+      Timef = CurrTime - Timef
     else if(Coll)then
       stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
@@ -79,7 +84,7 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,
   return
 end subroutine ext_pnc_RealFieldIO
 
-subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,Status)
+subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,Status,Timef)
   use wrf_data_pnc
   use ext_pnc_support_routines
   implicit none
@@ -94,7 +99,9 @@ subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Dat
   logical                     ,intent(in)    :: EnableBput
   real*8                      ,intent(inout) :: Data
   integer                     ,intent(out)   :: Status
+  real*8                      ,intent(out)   :: Timef
   integer                                    :: stat
+  real*8                                     :: CurrTime
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
   integer :: BputReqID
@@ -103,8 +110,11 @@ subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Dat
 
   if(IO == 'write') then
     if(EnableBput)then
+      call inqCurrentTime(Timef)
       ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
+      call inqCurrentTime(CurrTime)
+      Timef = CurrTime - Timef
     else if(Coll)then
       stat = NFMPI_PUT_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
    else
@@ -125,7 +135,7 @@ subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Dat
   return
 end subroutine ext_pnc_DoubleFieldIO
 
-subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,Status)
+subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,Status,Timef)
   use wrf_data_pnc
   use ext_pnc_support_routines
   implicit none
@@ -140,7 +150,9 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,S
   logical                     ,intent(in)    :: EnableBput
   integer                     ,intent(inout) :: Data
   integer                     ,intent(out)   :: Status
+  real*8                      ,intent(out)   :: Timef
   integer                                    :: stat
+  real*8                                     :: CurrTime
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
   integer :: BputReqID
@@ -149,8 +161,11 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,S
 
   if(IO == 'write') then
     if(EnableBput)then
+      call inqCurrentTime(Timef)
       ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
+      call inqCurrentTime(CurrTime)
+      Timef = CurrTime - Timef
     else if(Coll)then
       stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
@@ -171,7 +186,7 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,S
   return
 end subroutine ext_pnc_IntFieldIO
 
-subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,Status)
+subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,Status,Timef)
   use wrf_data_pnc
   use ext_pnc_support_routines
   implicit none
@@ -186,9 +201,11 @@ subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Da
   logical                                         ,intent(in)    :: EnableBput
   logical,dimension(VCount(1),VCount(2),VCount(3)),intent(inout) :: Data
   integer                                         ,intent(out)   :: Status
+  real*8                                          ,intent(out)   :: Timef
   integer,dimension(:,:,:),allocatable                           :: Buffer
   integer                                                        :: stat
   integer                                                        :: i,j,k
+  real*8                                                         :: CurrTime
 !local
   integer(KIND=MPI_OFFSET_KIND), dimension(NVarDims)    :: VStart_mpi, VCount_mpi
   integer :: BputReqID
@@ -215,8 +232,11 @@ subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Da
       enddo
     enddo
     if(EnableBput)then
+      call inqCurrentTime(Timef)
       ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer,BputReqID)
+      call inqCurrentTime(CurrTime)
+      Timef = CurrTime - Timef
     else if(Coll)then
       stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
    else
