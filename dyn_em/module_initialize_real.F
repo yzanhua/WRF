@@ -378,9 +378,9 @@ integer::oops1,oops2
 #if ( defined(DM_PARALLEL)  &&   ! defined(STUBMPI) )
          max_mf = wrf_dm_max_real ( max_mf )
 #endif
-         WRITE ( a_message , FMT='(A,F5.2,A)' ) 'Max map factor in domain 1 = ',max_mf, &
-                                                '. Scale the dt in the model accordingly.'
-         CALL wrf_message ( a_message )
+         !WRITE ( a_message , FMT='(A,F5.2,A)' ) 'Max map factor in domain 1 = ',max_mf, &
+         !                                       '. Scale the dt in the model accordingly.'
+         !CALL wrf_message ( a_message )
       END IF
 
       !  Check to see if the boundary conditions are set properly in the namelist file.

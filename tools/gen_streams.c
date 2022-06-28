@@ -415,13 +415,13 @@ gen_fine_stream_input ( FILE *fp )
   char * aux , *streamtype , streamno[5]  ;
   int i ;
   fprintf(fp,"IF      ( ( grid%%id .EQ. 1 ) .OR. ( config_flags%%fine_input_stream .EQ. 0 ) ) THEN\n") ;
-  fprintf(fp,"   CALL wrf_debug              (   0 , 'med_initialdata_input: calling input_input' )\n") ;
+  fprintf(fp,"   CALL wrf_debug              ( 100 , 'med_initialdata_input: calling input_input' )\n") ;
   fprintf(fp,"   CALL input_input      ( fid ,  grid , config_flags , ierr )\n") ;
   fprintf(fp,"   CALL wrf_debug              ( 100 , 'med_initialdata_input: back from input_input' )\n") ;
   for ( i = 1 ; i < MAX_HISTORY ; i++ )
   {
     fprintf(fp,"ELSE IF   ( config_flags%%fine_input_stream .EQ. %d ) THEN\n",i) ;
-    fprintf(fp,"   CALL wrf_debug              (   0 , 'med_initialdata_input: calling input_auxinput%d' )\n",i) ;
+    fprintf(fp,"   CALL wrf_debug              ( 100 , 'med_initialdata_input: calling input_auxinput%d' )\n",i) ;
     fprintf(fp,"   CALL input_auxinput%d ( fid ,   grid , config_flags , ierr )\n",i) ;
     fprintf(fp,"   CALL wrf_debug              ( 100 , 'med_initialdata_input: back from input_auxinput%d' )\n",i) ;
   }

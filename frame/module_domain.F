@@ -1336,8 +1336,8 @@ CONTAINS
       INTEGER  idum1, idum2
 
 #if (EM_CORE == 1)
-      IF ( grid%id .EQ. 1 ) CALL wrf_message ( &
-          'DYNAMICS OPTION: Eulerian Mass Coordinate ')
+      ! IF ( grid%id .EQ. 1 ) CALL wrf_message ( &
+      !     'DYNAMICS OPTION: Eulerian Mass Coordinate ')
 #endif
 
       CALL set_scalar_indices_from_config( id , idum1 , idum2 )
