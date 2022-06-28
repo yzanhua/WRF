@@ -2928,7 +2928,7 @@ SUBROUTINE quilting_disabled( reslt )
   USE module_wrf_quilt
   LOGICAL, INTENT(OUT) :: reslt
   reslt = disable_quilt
-write(0,*)__FILE__,__LINE__,disable_quilt
+!write(0,*)__FILE__,__LINE__,disable_quilt
   RETURN
 END SUBROUTINE quilting_disabled
 

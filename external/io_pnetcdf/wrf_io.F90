@@ -973,10 +973,14 @@ subroutine ext_pnc_bput_wait(hndl)
   integer, INTENT(IN)  :: hndl
   type(wrf_data_handle), pointer :: DH
   integer :: ierr, status, dummy(0)
+  real*8 :: timef, timef1
 
   call GetDH(hndl,DH,ierr)
   if (DH%BputEnabled) then
+    call inqCurrentTime(timef1)
     ierr = NFMPI_WAIT_ALL(DH%NCID, NF_REQ_ALL, dummy, dummy)
+    call inqCurrentTime(timef)
+    timef = timef - timef1
 
     ! check error
     call netcdf_err(ierr,status)
@@ -985,6 +989,10 @@ subroutine ext_pnc_bput_wait(hndl)
       call wrf_debug(WARN, TRIM(msg))
       return
     endif
+
+    write(msg,'("PnetCDF: Timing for WaitAll call for file ",A,": ",F10.5," seconds")') TRIM(DH%FileName), timef
+    call wrf_message(TRIM(msg))
+
   endif
 end subroutine ext_pnc_bput_wait
 
@@ -1082,8 +1090,8 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
   stat = NFMPI_OPEN(Comm, FileName, NF_NOWRITE, MPI_INFO_NULL, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,*) 'Timing for opening file ', TRIM(FileName), timef, ' :open_for_read_begin'
-  call wrf_debug ( WARN , TRIM(msg))
+  write(msg,'("PnetCDF: Timing for opening file ",A,": ",F10.5," seconds: open_for_read_begin")') TRIM(FileName), timef
+  call wrf_message(TRIM(msg))
 
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1223,8 +1231,8 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
   stat = NFMPI_OPEN(Comm, FileName, NF_WRITE, MPI_INFO_NULL, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,*) 'Timing for opening file ', TRIM(FileName), timef, ' :open_for_update'
-  call wrf_debug ( WARN , TRIM(msg))
+  write(msg,'("PnetCDF: Timing for opening file ",A,": ",F10.5," seconds: open_for_update")') TRIM(FileName), timef
+  call wrf_message(TRIM(msg))
 
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1376,8 +1384,9 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   stat = NFMPI_CREATE(Comm, newFileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,*) 'Timing for creating file ', TRIM(FileName), timef
-  call wrf_debug ( WARN , TRIM(msg))
+  
+  write(msg,'("PnetCDF: Timing for creating file ",A,": ",F10.5," seconds")') TRIM(FileName), timef
+  call wrf_message(TRIM(msg))
 
 ! stat = NFMPI_CREATE(Comm, newFileName, NF_64BIT_OFFSET, info, DH%NCID)
   call mpi_info_free( info, ierr)
@@ -1393,8 +1402,8 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,*) 'Timing for creating file ', TRIM(FileName), timef
-  call wrf_debug ( WARN , TRIM(msg))
+  write(msg,'("PnetCDF: Timing for creating file ",A,": ",F10.5," seconds")') TRIM(FileName), timef
+  call wrf_message(TRIM(msg))
 
   call mpi_info_free( info, ierr)
 !
@@ -1513,7 +1522,7 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
   integer                           :: stat
-  integer                           :: WriteAmount
+  integer                           :: IOAmount
 
   call GetDH(DataHandle,DH,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1555,15 +1564,20 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
       return
     endif
     DH%BputEnabled = .false.
-
-    write(msg,*) 'Timing for all bput calls for file ', TRIM(DH%FileName), DH%BputTiming
-    call wrf_debug ( WARN , TRIM(msg))
+    
+    write(msg,'("PnetCDF: Timing for all bput calls for file ",A,": ",F10.5," seconds")') TRIM(DH%FileName), DH%BputTiming
+    call wrf_message(TRIM(msg))
     DH%BputTiming = 0
   endif
 
-  stat = nfmpi_inq_put_size(DH%NCID, WriteAmount)
-  write(msg,*) 'Write amount from nfmpi_inq_put_size for file ', TRIM(DH%FileName), WriteAmount
-  call wrf_debug ( WARN , TRIM(msg))
+  stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
+  
+  write(msg,'("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,": ",I8," bytes")') TRIM(DH%FileName), IOAmount
+  call wrf_message(TRIM(msg))
+
+  stat = nfmpi_inq_get_size(DH%NCID, IOAmount)
+  write(msg,'("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,": ",I8," bytes")') TRIM(DH%FileName), IOAmount
+  call wrf_message(TRIM(msg))
 
   stat = NFMPI_CLOSE(DH%NCID)
   call netcdf_err(stat,Status)

@@ -11,7 +11,6 @@
 !    USE module_date_time
     USE module_model_constants
     USE module_utility
-    USE module_timing
     IMPLICIT NONE
 #include "wrf_io_flags.h"
 #include "wrf_status_codes.h"
@@ -1562,10 +1561,7 @@ endif
     ENDIF
 
     IF (bput_enabled) THEN
-      CALL start_timing
-      call BputWait(fid) ! wait till all PnetCDF bput calls (on this file) are finished.
-      WRITE ( wrf_err_message , FMT = '("WaitAll call switch is",I8)' ) switch
-      CALL end_timing ( TRIM(wrf_err_message) )
+      CALL BputWait(fid) ! wait till all PnetCDF bput calls (on this file) are finished.
     ENDIF
 
 #if ( (EM_CORE == 1) && (DA_CORE != 1) )

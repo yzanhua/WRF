@@ -101,7 +101,7 @@ use module_io
           CALL WRF_ERROR_FATAL ( wrf_err_message )
         ENDIF
            
-           CALL wrf_debug              (   0 , 'med_initialdata_input: calling input_aux_model_input7' )
+           CALL wrf_debug              ( 100 , 'med_initialdata_input: calling input_aux_model_input7' )
            CALL input_auxinput7 ( grid%auxinput7_oid ,   grid , config_flags , ierr )
            CALL wrf_debug              ( 100 , 'med_initialdata_input: back from input_aux_model_input7' )
         

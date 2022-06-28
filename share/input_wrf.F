@@ -176,7 +176,7 @@
        CALL is_this_data_ok_to_use ( fid , yes_use_this_data )
        IF ( ( yes_use_this_data ) .OR. ( config_flags%force_use_old_data ) ) THEN
           WRITE(wrf_err_message,*)'Input data is acceptable to use: ' // TRIM(fname) 
-          CALL wrf_debug( 0 , wrf_err_message )
+          CALL wrf_debug( 100 , wrf_err_message )
        ELSE
           CALL wrf_debug( 0 , 'File name that is causing troubles = ' // TRIM(fname) )
           WRITE(wrf_err_message,*)'You can try 1) ensure that the input file was created with WRF v4 pre-processors, or '
@@ -1137,10 +1137,10 @@
                                          current_timestr=currtimestr )
 #if (DA_CORE != 1) 
             IF ( (switch .EQ. input_only) .and. (grid%id .EQ. 1) .and. (grid%itimestep .EQ. 0) ) THEN
-               WRITE( wrf_err_message , * ) 'CURRENT DATE          = ',TRIM( currtimestr )
-               CALL wrf_message ( trim(wrf_err_message) )
-               WRITE( wrf_err_message , * ) 'SIMULATION START DATE = ', simulation_start_date(1:19)
-               CALL wrf_message ( TRIM(wrf_err_message ) )
+              !  WRITE( wrf_err_message , * ) 'CURRENT DATE          = ',TRIM( currtimestr )
+              !  CALL wrf_message ( trim(wrf_err_message) )
+              !  WRITE( wrf_err_message , * ) 'SIMULATION START DATE = ', simulation_start_date(1:19)
+              !  CALL wrf_message ( TRIM(wrf_err_message ) )
             END IF
 ! Don't perform the check for WRFVAR, as we're not passing the right dates
 ! around
