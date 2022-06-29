@@ -1839,7 +1839,7 @@ endif
       SELECT CASE (MemOrd)
         CASE ('xyz','xzy','yxz','yzx','zxy','zyx','xsz','xez','ysz','yez')
           NDim = 3
-        CASE ('xy','yx','xs','xe','ys','ye')
+        CASE ('xy','yx','xs','xe','ys','ye', 'cc')
           NDim = 2
         CASE ('z','c')
           NDim = 1

@@ -1239,8 +1239,13 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
    SELECT CASE( stream )
      CASE ( HISTORY_ALARM )
        IF ( grid%nframes(stream) >= config_flags%frames_per_outfile ) THEN
+<<<<<<< HEAD
 !write(0,*)__FILE__,__LINE__,trim(n2)
 !write(0,*)__FILE__,__LINE__,' grid%id ',grid%id,' grid%oid ',grid%oid
+=======
+! write(0,*)__FILE__,__LINE__,trim(n2)
+! write(0,*)__FILE__,__LINE__,' grid%id ',grid%id,' grid%oid ',grid%oid
+>>>>>>> 28475827 (Fix some printing issue)
          CALL close_dataset ( grid%oid , config_flags , n2 ) 
          grid%oid = 0
          grid%nframes(stream) = 0
