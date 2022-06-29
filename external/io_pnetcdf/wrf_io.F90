@@ -37,8 +37,8 @@
 
 module wrf_data_pnc
 
-  integer                , parameter      :: FATAL            = 0
-  integer                , parameter      :: WARN             = 0
+  integer                , parameter      :: FATAL            = 1
+  integer                , parameter      :: WARN             = 1
   integer                , parameter      :: WrfDataHandleMax = 99
   integer                , parameter      :: MaxDims          = 2000 ! = NF_MAX_VARS
   integer                , parameter      :: MaxVars          = 3000
@@ -100,6 +100,7 @@ module wrf_data_pnc
 
     ! a timer to measure costs of posting bput calls
     real*8                                :: BputTiming = 0
+    real*8                                :: WaitTiming = 0
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -472,7 +473,7 @@ subroutine GetDim(MemoryOrder,NDim,Status)
   select case (MemOrd)
     case ('xyz','xzy','yxz','yzx','zxy','zyx','xsz','xez','ysz','yez')
       NDim = 3
-    case ('xy','yx','xs','xe','ys','ye')
+    case ('xy','yx','xs','xe','ys','ye','cc')
       NDim = 2
     case ('z','c')
       NDim = 1
@@ -981,6 +982,7 @@ subroutine ext_pnc_bput_wait(hndl)
     ierr = NFMPI_WAIT_ALL(DH%NCID, NF_REQ_ALL, dummy, dummy)
     call inqCurrentTime(timef)
     timef = timef - timef1
+    DH%WaitTiming = DH%WaitTiming + timef
 
     ! check error
     call netcdf_err(ierr,status)
@@ -989,9 +991,6 @@ subroutine ext_pnc_bput_wait(hndl)
       call wrf_debug(WARN, TRIM(msg))
       return
     endif
-
-    write(msg,'("PnetCDF: Timing for WaitAll call for file ",A,": ",F10.5," seconds")') TRIM(DH%FileName), timef
-    call wrf_message(TRIM(msg))
 
   endif
 end subroutine ext_pnc_bput_wait
@@ -1090,7 +1089,7 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
   stat = NFMPI_OPEN(Comm, FileName, NF_NOWRITE, MPI_INFO_NULL, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,'("PnetCDF: Timing for opening file ",A,": ",F10.5," seconds: open_for_read_begin")') TRIM(FileName), timef
+  write(msg,'("PnetCDF: Timing for opening file ",A,"= ",F10.5," seconds: open_for_read_begin")') TRIM(FileName), timef
   call wrf_message(TRIM(msg))
 
   call netcdf_err(stat,Status)
@@ -1231,7 +1230,7 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
   stat = NFMPI_OPEN(Comm, FileName, NF_WRITE, MPI_INFO_NULL, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,'("PnetCDF: Timing for opening file ",A,": ",F10.5," seconds: open_for_update")') TRIM(FileName), timef
+  write(msg,'("PnetCDF: Timing for opening file ",A,"= ",F10.5," seconds: open_for_update")') TRIM(FileName), timef
   call wrf_message(TRIM(msg))
 
   call netcdf_err(stat,Status)
@@ -1385,7 +1384,7 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   call inqCurrentTime(timef)
   timef = timef - timef1
   
-  write(msg,'("PnetCDF: Timing for creating file ",A,": ",F10.5," seconds")') TRIM(FileName), timef
+  write(msg,'("PnetCDF: Timing for creating file ",A,"= ",F10.5," seconds")') TRIM(FileName), timef
   call wrf_message(TRIM(msg))
 
 ! stat = NFMPI_CREATE(Comm, newFileName, NF_64BIT_OFFSET, info, DH%NCID)
@@ -1402,7 +1401,7 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,'("PnetCDF: Timing for creating file ",A,": ",F10.5," seconds")') TRIM(FileName), timef
+  write(msg,'("PnetCDF: Timing for creating file ",A,"= ",F10.5," seconds")') TRIM(FileName), timef
   call wrf_message(TRIM(msg))
 
   call mpi_info_free( info, ierr)
@@ -1565,19 +1564,23 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
     endif
     DH%BputEnabled = .false.
     
-    write(msg,'("PnetCDF: Timing for all bput calls for file ",A,": ",F10.5," seconds")') TRIM(DH%FileName), DH%BputTiming
+    write(msg,'("PnetCDF: Timing for all WaitAll calls for file ",A,"= ",F10.5," seconds")') TRIM(DH%FileName), DH%WaitTiming
+    call wrf_message(TRIM(msg))
+    DH%WaitTiming = 0
+    write(msg,'("PnetCDF: Timing for all Bput calls for file ",A,"= ",F10.5," seconds")') TRIM(DH%FileName), DH%BputTiming
     call wrf_message(TRIM(msg))
     DH%BputTiming = 0
   endif
 
   stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
   
-  write(msg,'("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,": ",I8," bytes")') TRIM(DH%FileName), IOAmount
+  write(msg,'("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,"= ",I8," bytes")') TRIM(DH%FileName), IOAmount
   call wrf_message(TRIM(msg))
 
   stat = nfmpi_inq_get_size(DH%NCID, IOAmount)
-  write(msg,'("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,": ",I8," bytes")') TRIM(DH%FileName), IOAmount
+  write(msg,'("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,"= ",I8," bytes")') TRIM(DH%FileName), IOAmount
   call wrf_message(TRIM(msg))
+  call wrf_message(TRIM(''))
 
   stat = NFMPI_CLOSE(DH%NCID)
   call netcdf_err(stat,Status)
@@ -2520,9 +2523,10 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
   integer       ,dimension(NVarDims)           :: lMemoryStart, lMemoryEnd
   MemoryOrder = trim(adjustl(MemoryOrdIn))
   NullName=char(0)
+  call GetDH(DataHandle,DH,Status)
   call GetDim(MemoryOrder,NDim,Status)
   if(Status /= WRF_NO_ERR) then
-    write(msg,*) 'Warning BAD MEMORY ORDER |',MemoryOrder,'| in ',__FILE__,', line', __LINE__
+    write(msg,*) 'Warning BAD MEMORY ORDER |',MemoryOrder,'| in ',__FILE__,', line', __LINE__, TRIM(DH%FileName),' ', TRIM(Var)
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
@@ -2533,7 +2537,7 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
     return
   endif
   VarName = Var
-  call GetDH(DataHandle,DH,Status)
+  ! call GetDH(DataHandle,DH,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'Warning Status = ',Status,' in ',__FILE__,', line', __LINE__
     call wrf_debug ( WARN , TRIM(msg))
