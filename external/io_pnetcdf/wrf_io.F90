@@ -101,6 +101,8 @@ module wrf_data_pnc
     ! a timer to measure costs of posting bput calls
     real*8                                :: BputTiming = 0
     real*8                                :: WaitTiming = 0
+    integer                               :: NumBputCalls = 0
+    integer                               :: NumWaitAllCalls = 0
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -758,6 +760,7 @@ VCount(:) = 1
       return
   end select
   DH%BputTiming = DH%BputTiming + timef
+  IF (IO == 'write' .AND. DH%BputEnabled) DH%NumBputCalls = DH%NumBputCalls + 1
   return
 end subroutine FieldIO
 
@@ -983,6 +986,7 @@ subroutine ext_pnc_bput_wait(hndl)
     call inqCurrentTime(timef)
     timef = timef - timef1
     DH%WaitTiming = DH%WaitTiming + timef
+    DH%NumWaitAllCalls = DH%NumWaitAllCalls + 1
 
     ! check error
     call netcdf_err(ierr,status)
@@ -1562,18 +1566,23 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
       call wrf_debug ( WARN , TRIM(msg))
       return
     endif
+
+    write(msg,'("PnetCDF: Timing for all (=",I8,") WaitAll calls for file ",A,"= ",F10.5," seconds")')&
+                DH%NumWaitAllCalls, TRIM(DH%FileName), DH%WaitTiming
+    call wrf_message(TRIM(msg))
+
+    write(msg,'("PnetCDF: Timing for all (=",I8,") Bput calls for file ",A,"= ",F10.5," seconds")') &
+                DH%NumBputCalls, TRIM(DH%FileName), DH%BputTiming
+    call wrf_message(TRIM(msg))
+
     DH%BputEnabled = .false.
-    
-    write(msg,'("PnetCDF: Timing for all WaitAll calls for file ",A,"= ",F10.5," seconds")') TRIM(DH%FileName), DH%WaitTiming
-    call wrf_message(TRIM(msg))
     DH%WaitTiming = 0
-    write(msg,'("PnetCDF: Timing for all Bput calls for file ",A,"= ",F10.5," seconds")') TRIM(DH%FileName), DH%BputTiming
-    call wrf_message(TRIM(msg))
+    DH%NumWaitAllCalls = 0
     DH%BputTiming = 0
+    DH%NumBputCalls = 0
   endif
 
   stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
-  
   write(msg,'("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,"= ",I8," bytes")') TRIM(DH%FileName), IOAmount
   call wrf_message(TRIM(msg))
 
