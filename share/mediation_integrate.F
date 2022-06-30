@@ -1169,7 +1169,7 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
    ENDIF
    CALL output_restart ( rid, grid , config_flags , ierr )
    IF ( wrf_dm_on_monitor() ) THEN
-     WRITE ( message , FMT = '("Writing restart for domain ",I8)' ) grid%id
+     WRITE ( message , FMT = '("Writing restart file ",A," for domain ",I8)' ) TRIM(rstname), grid%id
      CALL end_timing ( TRIM(message) )
    END IF
    CALL close_dataset ( rid , config_flags , "DATASET=RESTART" )
@@ -1250,7 +1250,7 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
 
    END SELECT
    IF ( wrf_dm_on_monitor() ) THEN
-     WRITE ( message , FMT = '("Writing ",A," for domain ",I8)' )TRIM(fname),grid%id
+     WRITE ( message , FMT = '("Writing history file ",A," for domain ",I8)' )TRIM(fname),grid%id
      CALL end_timing ( TRIM(message) )
    END IF
 
