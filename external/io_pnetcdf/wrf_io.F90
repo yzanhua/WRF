@@ -931,6 +931,45 @@ LOGICAL FUNCTION ncd_is_first_operation( DataHandle )
     RETURN
 END FUNCTION ncd_is_first_operation
 
+SUBROUTINE PrintTimingMessage(print_format, timef, fileName, comm)
+  use wrf_data_pnc
+  character*(*), intent(in) :: print_format
+  real*8, intent(in) :: timef
+  character*(*), intent(in) :: fileName
+  integer, intent(in) :: comm
+#ifndef RSL0_ONLY
+  write(msg,print_format) fileName, timef,timef,timef
+  call wrf_message(TRIM(msg))
+#else
+  real*8 :: minTime=0, maxTime=0, avgTime=0
+  integer ::ierr=0, num_processes = 1
+  CALL MPI_REDUCE(timef, minTime, 1, MPI_DOUBLE, MPI_MIN, 0, comm, ierr)
+  CALL MPI_REDUCE(timef, maxTime, 1, MPI_DOUBLE, MPI_MAX, 0, comm, ierr)
+  CALL MPI_REDUCE(timef, avgTime, 1, MPI_DOUBLE, MPI_SUM, 0, comm, ierr)
+  CALL MPI_COMM_SIZE(comm, num_processes, ierr)
+  avgTime = avgTime / num_processes
+  write(msg,print_format) fileName, minTime, avgTime, maxTime
+  call wrf_message(TRIM(msg))
+#endif
+END SUBROUTINE PrintTimingMessage
+
+SUBROUTINE PrintAmountMessage(print_format, amount, fileName, comm)
+  use wrf_data_pnc
+  character*(*), intent(in) :: print_format
+  integer, intent(in) :: amount
+  character*(*), intent(in) :: fileName
+  integer, intent(in) :: comm
+#ifndef RSL0_ONLY
+  write(msg,print_format) fileName, amount
+  call wrf_message(TRIM(msg))
+#else
+  integer ::ierr=0, sum=0
+  CALL MPI_REDUCE(amount, sum, 1, MPI_INT, MPI_SUM, 0, comm, ierr)
+  write(msg,print_format) fileName, sum
+  call wrf_message(TRIM(msg))
+#endif
+END SUBROUTINE PrintAmountMessage
+
 end module ext_pnc_support_routines
 
 ! ext_pnc_bput_set_buffer_size:
@@ -1093,8 +1132,11 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
   stat = NFMPI_OPEN(Comm, FileName, NF_NOWRITE, MPI_INFO_NULL, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,'("PnetCDF: Timing for opening file ",A,"= ",F10.5," seconds: open_for_read_begin")') TRIM(FileName), timef
-  call wrf_message(TRIM(msg))
+  ! write(msg,) TRIM(FileName), timef
+  ! call wrf_message(TRIM(msg))
+  call PrintTimingMessage(&
+    '("PnetCDF: Timing for opening file ",A,"= (",F10.5,F10.5,F10.5,")seconds: open_for_read_begin")',&
+    timef, TRIM(FileName), DH%Comm)
 
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1234,8 +1276,9 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
   stat = NFMPI_OPEN(Comm, FileName, NF_WRITE, MPI_INFO_NULL, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,'("PnetCDF: Timing for opening file ",A,"= ",F10.5," seconds: open_for_update")') TRIM(FileName), timef
-  call wrf_message(TRIM(msg))
+  call PrintTimingMessage(&
+    '("PnetCDF: Timing for opening file ",A,"= (",F10.5,F10.5,F10.5,") seconds: open_for_update")',&
+    timef,TRIM(FileName),DH%Comm)
 
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1388,8 +1431,9 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   call inqCurrentTime(timef)
   timef = timef - timef1
   
-  write(msg,'("PnetCDF: Timing for creating file ",A,"= ",F10.5," seconds")') TRIM(FileName), timef
-  call wrf_message(TRIM(msg))
+  call PrintTimingMessage(&
+    '("PnetCDF: Timing for creating file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+    timef,TRIM(FileName),DH%Comm)
 
 ! stat = NFMPI_CREATE(Comm, newFileName, NF_64BIT_OFFSET, info, DH%NCID)
   call mpi_info_free( info, ierr)
@@ -1405,8 +1449,10 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
   call inqCurrentTime(timef)
   timef = timef - timef1
-  write(msg,'("PnetCDF: Timing for creating file ",A,"= ",F10.5," seconds")') TRIM(FileName), timef
-  call wrf_message(TRIM(msg))
+  call PrintTimingMessage(&
+    '("PnetCDF: Timing for creating file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+    timef,TRIM(FileName),DH%Comm)
+  
 
   call mpi_info_free( info, ierr)
 !
@@ -1567,13 +1613,12 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
       return
     endif
 
-    write(msg,'("PnetCDF: Timing for all (=",I8,") WaitAll calls for file ",A,"= ",F10.5," seconds")')&
-                DH%NumWaitAllCalls, TRIM(DH%FileName), DH%WaitTiming
-    call wrf_message(TRIM(msg))
-
-    write(msg,'("PnetCDF: Timing for all (=",I8,") Bput calls for file ",A,"= ",F10.5," seconds")') &
-                DH%NumBputCalls, TRIM(DH%FileName), DH%BputTiming
-    call wrf_message(TRIM(msg))
+    call PrintTimingMessage(&
+      '("PnetCDF: Timing for all WaitAll calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+      DH%WaitTiming, TRIM(DH%FileName), DH%Comm)
+    call PrintTimingMessage(&
+      '("PnetCDF: Timing for all Bput calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+      DH%BputTiming,TRIM(DH%FileName), DH%Comm)
 
     DH%BputEnabled = .false.
     DH%WaitTiming = 0
@@ -1583,13 +1628,14 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   endif
 
   stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
-  write(msg,'("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,"= ",I8," bytes")') TRIM(DH%FileName), IOAmount
-  call wrf_message(TRIM(msg))
+  call PrintAmountMessage(&
+    '("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,"= ",I8," bytes")', &
+    IOAmount, TRIM(DH%FileName), DH%Comm)
 
   stat = nfmpi_inq_get_size(DH%NCID, IOAmount)
-  write(msg,'("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,"= ",I8," bytes")') TRIM(DH%FileName), IOAmount
-  call wrf_message(TRIM(msg))
-  call wrf_message(TRIM(''))
+  call PrintAmountMessage(&
+    '("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,"= ",I8," bytes")', &
+    IOAmount, TRIM(DH%FileName), DH%Comm)
 
   stat = NFMPI_CLOSE(DH%NCID)
   call netcdf_err(stat,Status)
