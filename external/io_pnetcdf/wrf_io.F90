@@ -101,8 +101,6 @@ module wrf_data_pnc
     ! a timer to measure costs of posting bput calls
     real*8                                :: BputTiming = 0
     real*8                                :: WaitTiming = 0
-    integer                               :: NumBputCalls = 0
-    integer                               :: NumWaitAllCalls = 0
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -398,6 +396,7 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   integer                               :: stat
   integer                               :: i
   integer                               :: BputReqID, MPIRank
+  real*8                                :: timef, timef1
 
   DH => WrfDataHandles(DataHandle)
   call DateCheck(DateStr,Status)
@@ -431,6 +430,7 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     VCount(2) = 1
 
     CALL MPI_COMM_RANK(DH%Comm, MPIRank, stat)
+    call inqCurrentTime(timef1)
     if (DH%BputEnabled) then
       if (MPIRank == 0) then
         ! Calling non-blocking buffered-version API
@@ -439,6 +439,8 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
     endif
+    call inqCurrentTime(timef)
+    DH%BputTiming = DH%BputTiming + timef - timef1
 
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
@@ -760,7 +762,6 @@ VCount(:) = 1
       return
   end select
   DH%BputTiming = DH%BputTiming + timef
-  IF (IO == 'write' .AND. DH%BputEnabled) DH%NumBputCalls = DH%NumBputCalls + 1
   return
 end subroutine FieldIO
 
@@ -1025,7 +1026,6 @@ subroutine ext_pnc_bput_wait(hndl)
     call inqCurrentTime(timef)
     timef = timef - timef1
     DH%WaitTiming = DH%WaitTiming + timef
-    DH%NumWaitAllCalls = DH%NumWaitAllCalls + 1
 
     ! check error
     call netcdf_err(ierr,status)
@@ -1617,14 +1617,16 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
       '("PnetCDF: Timing for all WaitAll calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
       DH%WaitTiming, TRIM(DH%FileName), DH%Comm)
     call PrintTimingMessage(&
-      '("PnetCDF: Timing for all Bput calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+      '("PnetCDF: Timing for posting all NFMPI_BPUT calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
       DH%BputTiming,TRIM(DH%FileName), DH%Comm)
 
     DH%BputEnabled = .false.
     DH%WaitTiming = 0
-    DH%NumWaitAllCalls = 0
     DH%BputTiming = 0
-    DH%NumBputCalls = 0
+  else
+    call PrintTimingMessage(&
+      '("PnetCDF: Timing for all NFMPI_PUT calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+      DH%BputTiming,TRIM(DH%FileName), DH%Comm)
   endif
 
   stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
