@@ -58,17 +58,17 @@ subroutine ext_pnc_RealFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,
   VCount_mpi = VCount
 
   if(IO == 'write') then
+    call inqCurrentTime(Timef)
     if(EnableBput)then
-      call inqCurrentTime(Timef)
       ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
-      call inqCurrentTime(CurrTime)
-      Timef = CurrTime - Timef
     else if(Coll)then
       stat = NFMPI_PUT_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
       stat = NFMPI_PUT_VARA_REAL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     end if
+    call inqCurrentTime(CurrTime)
+    Timef = CurrTime - Timef
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_REAL_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -109,17 +109,17 @@ subroutine ext_pnc_DoubleFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Dat
   VCount_mpi = VCount
 
   if(IO == 'write') then
+    call inqCurrentTime(Timef)
     if(EnableBput)then
-      call inqCurrentTime(Timef)
       ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
-      call inqCurrentTime(CurrTime)
-      Timef = CurrTime - Timef
     else if(Coll)then
       stat = NFMPI_PUT_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
    else
       stat = NFMPI_PUT_VARA_DOUBLE(NCID,VarID,VStart_mpi,VCount_mpi,Data)
    endif
+   call inqCurrentTime(CurrTime)
+   Timef = CurrTime - Timef
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_DOUBLE_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -160,17 +160,17 @@ subroutine ext_pnc_IntFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Data,S
   VCount_mpi = VCount
 
   if(IO == 'write') then
+    call inqCurrentTime(Timef)
     if(EnableBput)then
-      call inqCurrentTime(Timef)
       ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data,BputReqID)
-      call inqCurrentTime(CurrTime)
-      Timef = CurrTime - Timef
     else if(Coll)then
       stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     else
       stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Data)
     endif
+    call inqCurrentTime(CurrTime)
+    Timef = CurrTime - Timef
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Data)
@@ -231,17 +231,17 @@ subroutine ext_pnc_LogicalFieldIO(Coll,IO,NCID,VarID,VStart,VCount,EnableBput,Da
         enddo
       enddo
     enddo
+    call inqCurrentTime(Timef)
     if(EnableBput)then
-      call inqCurrentTime(Timef)
       ! Calling non-blocking buffered-version API
       stat = NFMPI_BPUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer,BputReqID)
-      call inqCurrentTime(CurrTime)
-      Timef = CurrTime - Timef
     else if(Coll)then
       stat = NFMPI_PUT_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
    else
       stat = NFMPI_PUT_VARA_INT(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
    end if
+   call inqCurrentTime(CurrTime)
+   Timef = CurrTime - Timef
   else
     if(Coll)then
       stat = NFMPI_GET_VARA_INT_ALL(NCID,VarID,VStart_mpi,VCount_mpi,Buffer)
