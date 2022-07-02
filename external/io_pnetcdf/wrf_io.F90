@@ -1620,6 +1620,7 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
       '("PnetCDF: Timing for posting all NFMPI_BPUT calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
       DH%BputTiming,TRIM(DH%FileName), DH%Comm)
 
+
     DH%BputEnabled = .false.
     DH%WaitTiming = 0
     DH%BputTiming = 0
@@ -1631,12 +1632,12 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
 
   stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
   call PrintAmountMessage(&
-    '("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,"= ",I8," bytes")', &
+    '("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,"= ",I0," bytes")', &
     IOAmount, TRIM(DH%FileName), DH%Comm)
 
   stat = nfmpi_inq_get_size(DH%NCID, IOAmount)
   call PrintAmountMessage(&
-    '("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,"= ",I8," bytes")', &
+    '("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,"= ",I0," bytes")', &
     IOAmount, TRIM(DH%FileName), DH%Comm)
 
   stat = NFMPI_CLOSE(DH%NCID)
