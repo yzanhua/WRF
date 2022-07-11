@@ -957,15 +957,16 @@ END SUBROUTINE PrintTimingMessage
 SUBROUTINE PrintAmountMessage(print_format, amount, fileName, comm)
   use wrf_data_pnc
   character*(*), intent(in) :: print_format
-  integer, intent(in) :: amount
+  integer(kind=8), intent(in) :: amount
   character*(*), intent(in) :: fileName
   integer, intent(in) :: comm
 #ifndef RSL0_ONLY
   write(msg,print_format) fileName, amount
   call wrf_message(TRIM(msg))
 #else
-  integer ::ierr=0, sum=0
-  CALL MPI_REDUCE(amount, sum, 1, MPI_INT, MPI_SUM, 0, comm, ierr)
+  integer ::ierr=0
+  integer(kind=8) :: sum=0
+  CALL MPI_REDUCE(amount, sum, 1, MPI_INT64_T, MPI_SUM, 0, comm, ierr)
   write(msg,print_format) fileName, sum
   call wrf_message(TRIM(msg))
 #endif
@@ -1571,7 +1572,7 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
   integer                           :: stat
-  integer                           :: IOAmount
+  integer(kind=8)                   :: IOAmount
 
   call GetDH(DataHandle,DH,Status)
   if(Status /= WRF_NO_ERR) then
