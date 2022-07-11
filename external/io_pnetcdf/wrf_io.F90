@@ -1640,6 +1640,9 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
     '("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,"= ",I0," bytes")', &
     IOAmount, TRIM(DH%FileName), DH%Comm)
 
+  write(msg,'("PnetCDF: time steps for file ",A, " is ", I0)') TRIM(DH%FileName), DH%TimeIndex
+  call wrf_message(TRIM(msg))
+
   stat = NFMPI_CLOSE(DH%NCID)
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
