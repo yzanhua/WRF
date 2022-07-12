@@ -1022,6 +1022,7 @@ subroutine ext_pnc_bput_wait(hndl)
 
   call GetDH(hndl,DH,ierr)
   if (DH%BputEnabled) then
+    call MPI_Barrier(DH%Comm, ierr)
     call inqCurrentTime(timef1)
     ierr = NFMPI_WAIT_ALL(DH%NCID, NF_REQ_ALL, dummy, dummy)
     call inqCurrentTime(timef)
