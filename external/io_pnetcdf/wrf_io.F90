@@ -740,6 +740,7 @@ VCount(:) = 1
   VStart(NDim+1) = TimeIndex
   VCount(NDim+1) = 1
   DH => WrfDataHandles(DataHandle)
+  call MPI_Barrier(DH%Comm, Status)
   select case (FieldType)
     case (WRF_REAL)
       call ext_pnc_RealFieldIO    (DH%Collective,IO,NCID,VarID,&
@@ -939,17 +940,21 @@ SUBROUTINE PrintTimingMessage(print_format, timef, fileName, comm)
   character*(*), intent(in) :: fileName
   integer, intent(in) :: comm
 #ifndef RSL0_ONLY
-  write(msg,print_format) fileName, timef,timef,timef
+  write(msg,print_format) fileName, timef
   call wrf_message(TRIM(msg))
 #else
-  real*8 :: minTime=0, maxTime=0, avgTime=0
-  integer ::ierr=0, num_processes = 1
-  CALL MPI_REDUCE(timef, minTime, 1, MPI_DOUBLE, MPI_MIN, 0, comm, ierr)
+  ! real*8 :: minTime=0, maxTime=0, avgTime=0
+  ! integer ::ierr=0, num_processes = 1
+  ! CALL MPI_REDUCE(timef, minTime, 1, MPI_DOUBLE, MPI_MIN, 0, comm, ierr)
+  ! CALL MPI_REDUCE(timef, maxTime, 1, MPI_DOUBLE, MPI_MAX, 0, comm, ierr)
+  ! CALL MPI_REDUCE(timef, avgTime, 1, MPI_DOUBLE, MPI_SUM, 0, comm, ierr)
+  ! CALL MPI_COMM_SIZE(comm, num_processes, ierr)
+  ! avgTime = avgTime / num_processes
+  ! write(msg,print_format) fileName, minTime, avgTime, maxTime
+  real*8 :: maxTime = 0
+  integer :: ierr = 0
   CALL MPI_REDUCE(timef, maxTime, 1, MPI_DOUBLE, MPI_MAX, 0, comm, ierr)
-  CALL MPI_REDUCE(timef, avgTime, 1, MPI_DOUBLE, MPI_SUM, 0, comm, ierr)
-  CALL MPI_COMM_SIZE(comm, num_processes, ierr)
-  avgTime = avgTime / num_processes
-  write(msg,print_format) fileName, minTime, avgTime, maxTime
+  write(msg,print_format) fileName, maxTime
   call wrf_message(TRIM(msg))
 #endif
 END SUBROUTINE PrintTimingMessage
@@ -1137,7 +1142,7 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
   ! write(msg,) TRIM(FileName), timef
   ! call wrf_message(TRIM(msg))
   call PrintTimingMessage(&
-    '("PnetCDF: Timing for opening file ",A,"= (",F10.5,F10.5,F10.5,")seconds: open_for_read_begin")',&
+    '("PnetCDF: Timing for opening file ",A,"=",F10.5," seconds: open_for_read_begin")',&
     timef, TRIM(FileName), DH%Comm)
 
   call netcdf_err(stat,Status)
@@ -1279,7 +1284,7 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
   call inqCurrentTime(timef)
   timef = timef - timef1
   call PrintTimingMessage(&
-    '("PnetCDF: Timing for opening file ",A,"= (",F10.5,F10.5,F10.5,") seconds: open_for_update")',&
+    '("PnetCDF: Timing for opening file ",A,"=",F10.5," seconds: open_for_update")',&
     timef,TRIM(FileName),DH%Comm)
 
   call netcdf_err(stat,Status)
@@ -1434,7 +1439,7 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   timef = timef - timef1
   
   call PrintTimingMessage(&
-    '("PnetCDF: Timing for creating file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+    '("PnetCDF: Timing for creating file ",A,"=",F10.5," seconds")',&
     timef,TRIM(FileName),DH%Comm)
 
 ! stat = NFMPI_CREATE(Comm, newFileName, NF_64BIT_OFFSET, info, DH%NCID)
@@ -1452,7 +1457,7 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   call inqCurrentTime(timef)
   timef = timef - timef1
   call PrintTimingMessage(&
-    '("PnetCDF: Timing for creating file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+    '("PnetCDF: Timing for creating file ",A,"= (",F10.5,") seconds")',&
     timef,TRIM(FileName),DH%Comm)
   
 
@@ -1616,21 +1621,20 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
     endif
 
     call PrintTimingMessage(&
-      '("PnetCDF: Timing for all WaitAll calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+      '("PnetCDF: Timing for all WaitAll calls for file ",A,"=",F10.5," seconds")',&
       DH%WaitTiming, TRIM(DH%FileName), DH%Comm)
     call PrintTimingMessage(&
-      '("PnetCDF: Timing for posting all NFMPI_BPUT calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+      '("PnetCDF: Timing for posting all NFMPI_BPUT calls for file ",A,"=",F10.5," seconds")',&
       DH%BputTiming,TRIM(DH%FileName), DH%Comm)
-
-
-    DH%BputEnabled = .false.
-    DH%WaitTiming = 0
-    DH%BputTiming = 0
   else
     call PrintTimingMessage(&
-      '("PnetCDF: Timing for all NFMPI_PUT calls for file ",A,"= (",F10.5,F10.5,F10.5,") seconds")',&
+      '("PnetCDF: Timing for all NFMPI_PUT calls for file ",A,"=",F10.5" seconds")',&
       DH%BputTiming,TRIM(DH%FileName), DH%Comm)
   endif
+
+  DH%BputEnabled = .false.
+  DH%WaitTiming = 0
+  DH%BputTiming = 0
 
   stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
   call PrintAmountMessage(&
