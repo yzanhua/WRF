@@ -108,7 +108,7 @@
     !       1) enable_pnetcdf_bput = .true. in namelist.input
     !       2) io_form_history=11 or io_form_restart=11 (or both=11) in namelist.input
     !       3) not a dryrun
-    LOGICAL :: bput_enabled
+    LOGICAL :: bput_enabled = .false.
 
     WRITE(wrf_err_message,*)'output_wrf: begin, fid = ',fid
     CALL wrf_debug( 300 , wrf_err_message )

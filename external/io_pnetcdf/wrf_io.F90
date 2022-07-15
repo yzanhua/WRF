@@ -762,7 +762,7 @@ VCount(:) = 1
       call wrf_debug ( WARN , TRIM(msg))
       return
   end select
-  DH%BputTiming = DH%BputTiming + timef
+  IF (IO=='write') DH%BputTiming = DH%BputTiming + timef
   return
 end subroutine FieldIO
 
