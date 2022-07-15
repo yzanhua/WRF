@@ -118,21 +118,6 @@ integer(KIND=MPI_OFFSET_KIND) function i2offset(i)
   return
 end function i2offset
 
-subroutine inqCurrentTime(timef)
-  ! This is a simple subroutine that returns the current time in
-  ! seconds since some arbitrary reference point.  This routine is
-  ! meant to be used to accumulate timing information.
-  implicit none
-  real*8, intent(out):: timef
-#if defined(OLD_TIMERS)
-  integer :: ic,ir
-  call system_clock(count=ic,count_rate=ir)
-  timef=real(ic)/real(ir)
-#else
-  call hires_timer(timef)
-#endif
-end subroutine inqCurrentTime
-
 subroutine allocHandle(DataHandle,DH,Comm,Status)
   use wrf_data_pnc
   include 'wrf_status_codes.h'
@@ -396,7 +381,7 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   integer                               :: stat
   integer                               :: i
   integer                               :: BputReqID, MPIRank
-  real*8                                :: timef, timef1
+  real*8                                :: timef
 
   DH => WrfDataHandles(DataHandle)
   call DateCheck(DateStr,Status)
@@ -430,7 +415,7 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     VCount(2) = 1
 
     CALL MPI_COMM_RANK(DH%Comm, MPIRank, stat)
-    call inqCurrentTime(timef1)
+    timef = MPI_Wtime()
     if (DH%BputEnabled) then
       if (MPIRank == 0) then
         ! Calling non-blocking buffered-version API
@@ -439,8 +424,8 @@ subroutine GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
     else
       stat = NFMPI_PUT_VARA_TEXT_ALL(DH%NCID,DH%TimesVarID,VStart,VCount,DateStr)
     endif
-    call inqCurrentTime(timef)
-    DH%BputTiming = DH%BputTiming + timef - timef1
+    timef = MPI_Wtime() - timef
+    DH%BputTiming = DH%BputTiming + timef
 
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
@@ -1023,15 +1008,14 @@ subroutine ext_pnc_bput_wait(hndl)
   integer, INTENT(IN)  :: hndl
   type(wrf_data_handle), pointer :: DH
   integer :: ierr, status, dummy(0)
-  real*8 :: timef, timef1
+  real*8 :: timef
 
   call GetDH(hndl,DH,ierr)
   if (DH%BputEnabled) then
     call MPI_Barrier(DH%Comm, ierr)
-    call inqCurrentTime(timef1)
+    timef = MPI_Wtime()
     ierr = NFMPI_WAIT_ALL(DH%NCID, NF_REQ_ALL, dummy, dummy)
-    call inqCurrentTime(timef)
-    timef = timef - timef1
+    timef = MPI_Wtime() - timef
     DH%WaitTiming = DH%WaitTiming + timef
 
     ! check error
@@ -1120,7 +1104,7 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
   integer                                :: NumVars
   integer                                :: i
   character (NF_MAX_NAME)                :: Name
-  real*8                                 :: timef, timef1
+  real*8                                 :: timef
 
   if(WrfIOnotInitialized) then
     Status = WRF_IO_NOT_INITIALIZED 
@@ -1135,10 +1119,9 @@ subroutine ext_pnc_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, Data
     return
   endif
 
-  call inqCurrentTime(timef1)
+  timef = MPI_Wtime()
   stat = NFMPI_OPEN(Comm, FileName, NF_NOWRITE, MPI_INFO_NULL, DH%NCID)
-  call inqCurrentTime(timef)
-  timef = timef - timef1
+  timef = MPI_Wtime() - timef
   ! write(msg,) TRIM(FileName), timef
   ! call wrf_message(TRIM(msg))
   call PrintTimingMessage(&
@@ -1264,7 +1247,7 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
   integer                                :: NumVars
   integer                                :: i
   character (NF_MAX_NAME)                :: Name
-  real*8                                 :: timef, timef1
+  real*8                                 :: timef
 
   if(WrfIOnotInitialized) then
     Status = WRF_IO_NOT_INITIALIZED 
@@ -1279,10 +1262,9 @@ subroutine ext_pnc_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataHand
     return
   endif
 
-  call inqCurrentTime(timef1)
+  timef = MPI_Wtime()
   stat = NFMPI_OPEN(Comm, FileName, NF_WRITE, MPI_INFO_NULL, DH%NCID)
-  call inqCurrentTime(timef)
-  timef = timef - timef1
+  timef = MPI_Wtime() - timef
   call PrintTimingMessage(&
     '("PnetCDF: Timing for opening file ",A,"=",F10.5," seconds: open_for_update")',&
     timef,TRIM(FileName),DH%Comm)
@@ -1402,7 +1384,7 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   character*1024                    :: newFileName
   integer                           :: gridid
   integer local_communicator_x, ntasks_x
-  real*8                            :: timef, timef1
+  real*8                            :: timef
 
   if(WrfIOnotInitialized) then
     Status = WRF_IO_NOT_INITIALIZED 
@@ -1433,10 +1415,10 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
 !     if(newFileName(i:i) == '-') newFileName(i:i) = '_'
      if(newFileName(i:i) == ':') newFileName(i:i) = '_'
   enddo
-  call inqCurrentTime(timef1)
+
+  timef = MPI_Wtime()
   stat = NFMPI_CREATE(Comm, newFileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
-  call inqCurrentTime(timef)
-  timef = timef - timef1
+  timef = MPI_Wtime() - timef
   
   call PrintTimingMessage(&
     '("PnetCDF: Timing for creating file ",A,"=",F10.5," seconds")',&
@@ -1452,10 +1434,10 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
 !  call mpi_info_set(info,'cd_buffer_size','4194304',ierr)
   call mpi_info_set(info,'cd_buffer_size','8388608',ierr)
 
-  call inqCurrentTime(timef1)
+  timef = MPI_Wtime()
   stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
-  call inqCurrentTime(timef)
-  timef = timef - timef1
+  timef = MPI_Wtime() - timef
+
   call PrintTimingMessage(&
     '("PnetCDF: Timing for creating file ",A,"= (",F10.5,") seconds")',&
     timef,TRIM(FileName),DH%Comm)
