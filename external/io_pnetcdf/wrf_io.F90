@@ -469,7 +469,7 @@ subroutine GetDim(MemoryOrder,NDim,Status)
     case ('0')  ! NDim=0 for scalars.  TBH:  20060502
       NDim = 0
     case default
-      print *, 'memory order = ',MemOrd,'  ',MemoryOrder
+      !print *, 'memory order = ',MemOrd,'  ',MemoryOrder
       Status = WRF_WARN_BAD_MEMORYORDER
       return
   end select
@@ -686,7 +686,7 @@ subroutine netcdf_err(err,Status)
 end subroutine netcdf_err
 
 subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
-                     ,FieldType,NCID,VarID,XField,Status)
+                     ,FieldType,NCID,VarID,IsPartitioned,XField,Status)
   use wrf_data_pnc
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
@@ -699,6 +699,7 @@ subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
   integer                    ,intent(in)    :: FieldType
   integer                    ,intent(in)    :: NCID
   integer                    ,intent(in)    :: VarID
+  logical                    ,intent(in)    :: IsPartitioned
   integer,dimension(*)       ,intent(inout) :: XField
   integer                    ,intent(out)   :: Status
   integer                                   :: TimeIndex
@@ -707,6 +708,7 @@ subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
   integer,dimension(NVarDims)               :: VCount
   type(wrf_data_handle)      ,pointer       :: DH
   real*8                                    :: timef = 0
+  integer                                   :: MPIRank
 
   call GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   if(Status /= WRF_NO_ERR) then
@@ -725,7 +727,14 @@ VCount(:) = 1
   VStart(NDim+1) = TimeIndex
   VCount(NDim+1) = 1
   DH => WrfDataHandles(DataHandle)
-  call MPI_Barrier(DH%Comm, Status)
+
+  IF (IO=="write" .AND. .NOT.IsPartitioned .AND. DH%BputEnabled) THEN
+    CALL MPI_COMM_RANK(DH%Comm, MPIRank, Status)
+    if (MPIRank /= 0) return
+  ELSE
+    call MPI_Barrier(DH%Comm, Status)
+  ENDIF
+
   select case (FieldType)
     case (WRF_REAL)
       call ext_pnc_RealFieldIO    (DH%Collective,IO,NCID,VarID,&
@@ -747,6 +756,7 @@ VCount(:) = 1
       call wrf_debug ( WARN , TRIM(msg))
       return
   end select
+
   IF (IO=='write') DH%BputTiming = DH%BputTiming + timef
   return
 end subroutine FieldIO
@@ -928,14 +938,6 @@ SUBROUTINE PrintTimingMessage(print_format, timef, fileName, comm)
   write(msg,print_format) fileName, timef
   call wrf_message(TRIM(msg))
 #else
-  ! real*8 :: minTime=0, maxTime=0, avgTime=0
-  ! integer ::ierr=0, num_processes = 1
-  ! CALL MPI_REDUCE(timef, minTime, 1, MPI_DOUBLE, MPI_MIN, 0, comm, ierr)
-  ! CALL MPI_REDUCE(timef, maxTime, 1, MPI_DOUBLE, MPI_MAX, 0, comm, ierr)
-  ! CALL MPI_REDUCE(timef, avgTime, 1, MPI_DOUBLE, MPI_SUM, 0, comm, ierr)
-  ! CALL MPI_COMM_SIZE(comm, num_processes, ierr)
-  ! avgTime = avgTime / num_processes
-  ! write(msg,print_format) fileName, minTime, avgTime, maxTime
   real*8 :: maxTime = 0
   integer :: ierr = 0
   CALL MPI_REDUCE(timef, maxTime, 1, MPI_DOUBLE, MPI_MAX, 0, comm, ierr)
@@ -2570,6 +2572,7 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
   logical                                      :: quilting
   ! Local, possibly adjusted, copies of MemoryStart and MemoryEnd
   integer       ,dimension(NVarDims)           :: lMemoryStart, lMemoryEnd
+  logical                                      :: IsPartitioned = .false.
   MemoryOrder = trim(adjustl(MemoryOrdIn))
   NullName=char(0)
   call GetDH(DataHandle,DH,Status)
@@ -2817,10 +2820,18 @@ subroutine ext_pnc_write_field(DataHandle,DateStr,Var,Field,FieldType,Comm, &
                                                    ,i1,i2,j1,j2,k1,k2 )
     END IF
 
+    IsPartitioned = .false.
+    DO i=1, NDim
+      IF (DomainStart(i) .NE. PatchStart(i) .OR. DomainEnd(i) .NE. PatchEnd(i)) THEN
+        IsPartitioned = .true.
+        EXIT
+      ENDIF
+    ENDDO
+
     StoredStart(1:NDim) = PatchStart(1:NDim)
     call ExtOrder(MemoryOrder,StoredStart,Status)
     call FieldIO('write',DataHandle,DateStr,StoredStart,Length,MemoryOrder, &
-                  FieldType,NCID,VarID,XField,Status)
+                  FieldType,NCID,VarID,IsPartitioned,XField,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'Warning Status = ',Status,' in ',__FILE__,', line', __LINE__ 
       call wrf_debug ( WARN , TRIM(msg))
@@ -3071,7 +3082,7 @@ subroutine ext_pnc_read_field(DataHandle,DateStr,Var,Field,FieldType,Comm,  &
       return
     endif
     call FieldIO('read',DataHandle,DateStr,StoredStart,Length,MemoryOrder, &
-                  FieldType,NCID,VarID,XField,Status)
+                  FieldType,NCID,VarID,.true.,XField,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'Warning Status = ',Status,' in ',__FILE__,', line', __LINE__ 
       call wrf_debug ( WARN , TRIM(msg))
