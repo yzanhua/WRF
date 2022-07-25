@@ -20,10 +20,10 @@
  frames_per_outfile                  = 1000, 1000, 1000,
  restart                             = .false.,
  restart_interval_m                  = 60,
- io_form_history                     = 2
- io_form_restart                     = 2
- io_form_input                       = 2
- io_form_boundary                    = 2
+ io_form_history                     = 11
+ io_form_restart                     = 11
+ io_form_input                       = 11
+ io_form_boundary                    = 11
  enable_pnetcdf_bput                 = .false.
  /
 
@@ -118,5 +118,12 @@
  /
 
  &ideal
- ideal_case = 9
+ ideal_case = 9,
+ /
+
+ &logging
+ buffer_size = 0,
+ compute_tasks_silent = .true.,
+ io_servers_silent = .true.,
+ stderr_logging = 1,
  /
