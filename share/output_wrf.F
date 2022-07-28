@@ -1626,6 +1626,7 @@ endif
     USE module_domain_type, ONLY : fieldlist
     USE module_domain
     USE module_io
+    use module_timing
     IMPLICIT NONE
 
     INTEGER, PARAMETER :: DateStrLen = 19
@@ -1638,10 +1639,14 @@ endif
     INTEGER :: newSwitch, itrace
     TYPE(fieldlist), POINTER :: p
 
+    real*8 :: timef;
+
 #ifdef PNETCDF
     IF (totalSize > -1) THEN ! size already calculated, no need to repeat.
       RETURN
     ENDIF
+
+    CALL start_timing
 
     p => grid%head_statevars%next
     
@@ -1760,6 +1765,12 @@ endif
     ! of just giving to process 0, so that we can skip MPI rank check here to
     ! simplify the implementation.
     totalSize = totalSize + DateStrLen
+
+    IF (switch.EQ.restart_only) THEN
+      CALL end_timing("PnetCDF: Timing for BputCalcBufferSize for restart file")
+    ELSE
+      CALL end_timing("PnetCDF: Timing for BputCalcBufferSize for history file")
+    ENDIF
 
     contains
 
