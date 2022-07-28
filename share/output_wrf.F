@@ -1632,7 +1632,7 @@ endif
     INTEGER, PARAMETER :: DateStrLen = 19
     TYPE(domain), INTENT(IN) :: grid
     INTEGER, INTENT(IN) :: switch ! history files or restart files
-    INTEGER*8, INTENT(INOUT):: totalSize ! the buffer size to return
+    INTEGER(kind=8), INTENT(INOUT):: totalSize ! the buffer size to return
 
     ! temp variables
     INTEGER :: gridSize = 0, typeSize = 4

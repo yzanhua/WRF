@@ -39,8 +39,8 @@ MODULE module_io
                                                 ! are_bdys_distributed, bdys_are_distributed and
                                                 ! bdys_not_distributed routines access this flag
   CHARACTER*256 extradims
-  INTEGER*8 :: bput_buffer_size_history = -1
-  INTEGER*8 :: bput_buffer_size_restart = -1
+  INTEGER(kind=8) :: bput_buffer_size_history = -1
+  INTEGER(kind=8) :: bput_buffer_size_restart = -1
 
 !<DESCRIPTION>
 !<PRE>
@@ -77,7 +77,7 @@ MODULE module_io
 ! Set the buffer size used by PnetCDF bput calls.
 SUBROUTINE BputSetBufferSize(fid, bput_buffer_size)
   INTEGER, INTENT(IN) :: fid
-  INTEGER*8, INTENT(IN) :: bput_buffer_size
+  INTEGER(kind=8), INTENT(IN) :: bput_buffer_size
   INTEGER :: Hndl, Hopened
   LOGICAL :: for_out
 #ifdef PNETCDF
