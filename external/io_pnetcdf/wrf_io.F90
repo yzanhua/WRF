@@ -946,20 +946,20 @@ SUBROUTINE PrintTimingMessage(print_format, timef, fileName, comm)
 #endif
 END SUBROUTINE PrintTimingMessage
 
-SUBROUTINE PrintAmountMessage(print_format, amount, fileName, comm)
+SUBROUTINE PrintAmountMessage(print_format, amount, fileName, comm, mode)
   use wrf_data_pnc
   character*(*), intent(in) :: print_format
   integer(kind=8), intent(in) :: amount
   character*(*), intent(in) :: fileName
-  integer, intent(in) :: comm
+  integer, intent(in) :: comm, mode
 #ifndef RSL0_ONLY
   write(msg,print_format) fileName, amount
   call wrf_message(TRIM(msg))
 #else
   integer ::ierr=0
-  integer(kind=8) :: sum=0
-  CALL MPI_REDUCE(amount, sum, 1, MPI_INT64_T, MPI_SUM, 0, comm, ierr)
-  write(msg,print_format) fileName, sum
+  integer(kind=8) :: temp=0  ! sum or max
+  CALL MPI_REDUCE(amount, temp, 1, MPI_INT64_T, mode, 0, comm, ierr)
+  write(msg,print_format) fileName, temp
   call wrf_message(TRIM(msg))
 #endif
 END SUBROUTINE PrintAmountMessage
@@ -975,7 +975,7 @@ subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
   include 'wrf_status_codes.h'
 #  include "pnetcdf.inc"
   integer, INTENT(IN) :: hndl
-  integer, INTENT(IN) :: bput_buffer_size
+  integer(kind=8), INTENT(IN) :: bput_buffer_size
   type(wrf_data_handle), pointer :: DH
   integer :: ierr=0, status=0
 
@@ -985,6 +985,9 @@ subroutine ext_pnc_bput_set_buffer_size(hndl, bput_buffer_size)
     if(.NOT. DH%BputEnabled) then ! if buffer is not yet attached
       ierr = NFMPI_BUFFER_ATTACH(DH%NCID, bput_buffer_size)
       DH%BputEnabled = .true.
+      call PrintAmountMessage(&
+        '("PnetCDF: (max) buffer size attached to file ",A,"= ",I0," bytes")', &
+        bput_buffer_size, TRIM(DH%FileName), DH%Comm, MPI_MAX)
     endif
 
     ! check error
@@ -1623,14 +1626,16 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
   call PrintAmountMessage(&
     '("PnetCDF: Write amount from nfmpi_inq_put_size for file ",A,"= ",I0," bytes")', &
-    IOAmount, TRIM(DH%FileName), DH%Comm)
+    IOAmount, TRIM(DH%FileName), DH%Comm, MPI_SUM)
 
   stat = nfmpi_inq_get_size(DH%NCID, IOAmount)
   call PrintAmountMessage(&
     '("PnetCDF: Read amount from nfmpi_inq_get_size for file ",A,"= ",I0," bytes")', &
-    IOAmount, TRIM(DH%FileName), DH%Comm)
+    IOAmount, TRIM(DH%FileName), DH%Comm, MPI_SUM)
 
-  write(msg,'("PnetCDF: time steps for file ",A, " is ", I0)') TRIM(DH%FileName), DH%TimeIndex
+  write(msg,'("PnetCDF: Time steps for file ",A, " is ", I0)') TRIM(DH%FileName), DH%TimeIndex
+  call wrf_message(TRIM(msg))
+  write(msg,'("PnetCDF: File ",A, " closed.")') TRIM(DH%FileName)
   call wrf_message(TRIM(msg))
 
   stat = NFMPI_CLOSE(DH%NCID)
