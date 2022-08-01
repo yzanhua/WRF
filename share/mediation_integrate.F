@@ -1168,11 +1168,11 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
      CALL WRF_message( message )
    ENDIF
    CALL output_restart ( rid, grid , config_flags , ierr )
+   CALL close_dataset ( rid , config_flags , "DATASET=RESTART" )
    IF ( wrf_dm_on_monitor() ) THEN
      WRITE ( message , FMT = '("Writing restart file ",A," for domain ",I8)' ) TRIM(rstname), grid%id
      CALL end_timing ( TRIM(message) )
    END IF
-   CALL close_dataset ( rid , config_flags , "DATASET=RESTART" )
 
    ! call recursively for children, (if any)
    DO kid = 1, max_nests
