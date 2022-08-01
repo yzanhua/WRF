@@ -1130,6 +1130,7 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
   ! Model layer
 !   USE module_bc_time_utilities
    USE module_utility
+   USE module_io, ONLY : PncSetOutputWrfTime
 
    IMPLICIT NONE
 
@@ -1146,9 +1147,10 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
    INTEGER                                :: myproc
    CHARACTER*80                           :: timestr
    TYPE (grid_config_rec_type)            :: kid_config_flags
+   REAL*8                                 :: timef
 
    IF ( wrf_dm_on_monitor() ) THEN
-     CALL start_timing
+     timef = now_time()
    END IF
 
 ! take this out - no effect - LPC
@@ -1159,8 +1161,6 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
    CALL domain_clock_get( grid, current_timestr=timestr )
    CALL construct_filename2a ( rstname , config_flags%rst_outname , grid%id , 2 , timestr )
 
-   WRITE( message , '("med_restart_out: opening ",A," for writing")' ) TRIM ( rstname )
-   CALL wrf_debug( 1 , message )
    CALL open_w_dataset ( rid, TRIM(rstname), grid , &
                          config_flags , output_restart , "DATASET=RESTART", ierr )
 
@@ -1168,11 +1168,12 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
      CALL WRF_message( message )
    ENDIF
    CALL output_restart ( rid, grid , config_flags , ierr )
-   CALL close_dataset ( rid , config_flags , "DATASET=RESTART" )
+
    IF ( wrf_dm_on_monitor() ) THEN
-     WRITE ( message , FMT = '("Writing restart file ",A," for domain ",I8)' ) TRIM(rstname), grid%id
-     CALL end_timing ( TRIM(message) )
+     timef = now_time() - timef
+     CALL PncSetOutputWrfTime(rid, timef)
    END IF
+   CALL close_dataset ( rid , config_flags , "DATASET=RESTART" )
 
    ! call recursively for children, (if any)
    DO kid = 1, max_nests
@@ -1196,6 +1197,7 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
    USE module_dm, ONLY : intercomm_active
 !   USE module_bc_time_utilities
    USE module_utility
+   USE module_io, ONLY : PncSetOutputWrfTime
 
    IMPLICIT NONE
   ! Arguments
@@ -1207,11 +1209,12 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
    CHARACTER*256                          :: fname, n2
    CHARACTER (LEN=256)                    :: message
    INTEGER                                :: ierr
+   REAL*8                                 :: timef
 
    IF ( .NOT. grid%active_this_task ) RETURN
 
    IF ( wrf_dm_on_monitor() ) THEN
-     CALL start_timing
+     timef = now_time()
    END IF
 
    IF ( stream .LT. first_history .OR. stream .GT. last_auxhist ) THEN
@@ -1236,6 +1239,11 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
 
    grid%nframes(stream) = grid%nframes(stream) + 1
 
+   IF ( wrf_dm_on_monitor() ) THEN
+     timef = now_time() - timef
+     CALL PncSetOutputWrfTime(grid%oid, timef)
+   END IF
+
    SELECT CASE( stream )
      CASE ( HISTORY_ALARM )
        IF ( grid%nframes(stream) >= config_flags%frames_per_outfile ) THEN
@@ -1249,10 +1257,6 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
 #include "med_hist_out_closes.inc"
 
    END SELECT
-   IF ( wrf_dm_on_monitor() ) THEN
-     WRITE ( message , FMT = '("Writing history file ",A," for domain ",I8)' )TRIM(fname),grid%id
-     CALL end_timing ( TRIM(message) )
-   END IF
 
    RETURN
 END SUBROUTINE med_hist_out
