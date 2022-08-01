@@ -110,6 +110,16 @@ SUBROUTINE BputSetTimingBufferSize(fid, timef)
 #endif
 END SUBROUTINE BputSetTimingBufferSize
 
+SUBROUTINE PncSetOutputWrfTime(fid, timef)
+  INTEGER, INTENT(IN) :: fid
+  REAL*8, INTENT(IN) :: timef
+  INTEGER :: Hndl, Hopened
+  LOGICAL :: for_out
+#ifdef PNETCDF
+  call get_handle(Hndl, Hopened, for_out, fid)
+  call ext_pnc_set_output_wrf_time(Hndl, timef)
+#endif
+END SUBROUTINE PncSetOutputWrfTime
 
 !--- ioinit
 

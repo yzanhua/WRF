@@ -102,6 +102,7 @@ module wrf_data_pnc
     real*8                                :: BputTiming = 0
     real*8                                :: WaitTiming = 0
     real*8                                :: CalcBufferTiming = 0
+    real*8                                :: OutputWrfTiming = 0
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -1045,12 +1046,28 @@ subroutine ext_pnc_set_timing_buffer_size(hndl, timef)
   integer, INTENT(IN)  :: hndl
   real*8, INTENT(IN) :: timef
   type(wrf_data_handle), pointer :: DH
-  integer :: ierr, status, dummy(0)
+  integer :: ierr
 
   call GetDH(hndl,DH,ierr)
   DH%CalcBufferTiming = timef
 
 end subroutine ext_pnc_set_timing_buffer_size
+
+subroutine ext_pnc_set_output_wrf_time(hndl, timef)
+  use wrf_data_pnc
+  use ext_pnc_support_routines
+  implicit none
+  include 'wrf_status_codes.h'
+#  include "pnetcdf.inc"
+  integer, INTENT(IN)  :: hndl
+  real*8, INTENT(IN) :: timef
+  type(wrf_data_handle), pointer :: DH
+  integer :: ierr
+
+  call GetDH(hndl,DH,ierr)
+  DH%OutputWrfTiming = DH%OutputWrfTiming + timef
+
+end subroutine ext_pnc_set_output_wrf_time
 
 subroutine ext_pnc_open_for_read(DatasetName, Comm1, Comm2, SysDepInfo, DataHandle, Status)
   use wrf_data_pnc
@@ -1639,10 +1656,15 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
       '("PnetCDF: Timing for all NFMPI_PUT calls for file ",A,"=",F10.5" seconds")',&
       DH%BputTiming,TRIM(DH%FileName), DH%Comm)
   endif
+  call PrintTimingMessage(&
+      '("PnetCDF: Output_wrf time for file ",A,"=",F10.5," seconds")',&
+      DH%OutputWrfTiming,TRIM(DH%FileName), DH%Comm)
 
   DH%BputEnabled = .false.
   DH%WaitTiming = 0
   DH%BputTiming = 0
+  DH%CalcBufferTiming = 0
+  DH%OutputWrfTiming = 0
 
   stat = nfmpi_inq_put_size(DH%NCID, IOAmount)
   call PrintAmountMessage(&
