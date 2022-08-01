@@ -1167,6 +1167,7 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
    IF ( ierr .NE. 0 ) THEN
      CALL WRF_message( message )
    ENDIF
+   CALL MPI_Barrier(grid%communicator, ierr)
    CALL output_restart ( rid, grid , config_flags , ierr )
 
    IF ( wrf_dm_on_monitor() ) THEN
@@ -1227,6 +1228,7 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
        CALL open_hist_w( grid, config_flags, stream, HISTORY_ALARM, &
                          config_flags%history_outname, grid%oid,    &
                          output_history, fname, n2, ierr )
+       CALL MPI_Barrier(grid%communicator, ierr)
        CALL output_history ( grid%oid, grid , config_flags , ierr )
 
 ! registry-generated selections and calls top open_hist_w for aux streams

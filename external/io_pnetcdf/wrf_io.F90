@@ -736,7 +736,10 @@ VCount(:) = 1
   IF (IO=="write" .AND. .NOT.IsPartitioned .AND. DH%BputEnabled) THEN
     CALL MPI_COMM_RANK(DH%Comm, MPIRank, Status)
     if (MPIRank /= 0) return
-  ELSE
+  ENDIF
+
+  IF (IO=="write" .AND. .NOT.DH%BputEnabled) THEN
+    ! Add Barrier before non-blocking write
     call MPI_Barrier(DH%Comm, Status)
   ENDIF
 
