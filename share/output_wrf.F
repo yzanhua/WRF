@@ -1016,7 +1016,7 @@ endif
       IF (switch .EQ. history_only) THEN
         bput_enabled = bput_enabled .AND. (grid%io_form_history == 11)
         IF (bput_enabled) THEN
-          CALL BputCalcBufferSize(grid, switch, bput_buffer_size_history)
+          CALL BputCalcBufferSize(fid, grid, switch, bput_buffer_size_history)
           call BputSetBufferSize(fid, bput_buffer_size_history)
         ENDIF
 
@@ -1024,7 +1024,7 @@ endif
       ELSE IF (switch .EQ. restart_only) THEN
         bput_enabled = bput_enabled .AND. (grid%io_form_restart == 11)
         IF (bput_enabled) THEN
-          CALL BputCalcBufferSize(grid, switch, bput_buffer_size_restart)
+          CALL BputCalcBufferSize(fid, grid, switch, bput_buffer_size_restart)
           call BputSetBufferSize(fid, bput_buffer_size_restart)
         ENDIF
       ENDIF
@@ -1627,7 +1627,7 @@ endif
   ! BputCalcBufferSize:
   ! Calculate the buffer size needed by PnetCDF bput calls.
   ! The buffer size should equal the total amount of writes (excluding headers)
-  SUBROUTINE BputCalcBufferSize(grid, switch, totalSize)
+  SUBROUTINE BputCalcBufferSize(fid, grid, switch, totalSize)
     USE module_domain_type, ONLY : fieldlist
     USE module_domain
     USE module_io
@@ -1635,6 +1635,7 @@ endif
     IMPLICIT NONE
 
     INTEGER, PARAMETER :: DateStrLen = 19
+    INTEGER, INTENT(IN) :: fid ! this arg is used for timing (save the timing results to file related structs)
     TYPE(domain), INTENT(IN) :: grid
     INTEGER, INTENT(IN) :: switch ! history files or restart files
     INTEGER(kind=8), INTENT(INOUT):: totalSize ! the buffer size to return
@@ -1644,14 +1645,14 @@ endif
     INTEGER :: newSwitch, itrace
     TYPE(fieldlist), POINTER :: p
 
-    real*8 :: timef;
+    REAL*8 :: timef;
 
 #ifdef PNETCDF
     IF (totalSize > -1) THEN ! size already calculated, no need to repeat.
       RETURN
     ENDIF
 
-    CALL start_timing
+    timef = now_time()
 
     p => grid%head_statevars%next
     
@@ -1771,11 +1772,8 @@ endif
     ! simplify the implementation.
     totalSize = totalSize + DateStrLen
 
-    IF (switch.EQ.restart_only) THEN
-      CALL end_timing("PnetCDF: Timing for BputCalcBufferSize for restart file")
-    ELSE
-      CALL end_timing("PnetCDF: Timing for BputCalcBufferSize for history file")
-    ENDIF
+    timef = now_time() - timef
+    CALL BputSetTimingBufferSize(fid, timef)
 
     contains
 

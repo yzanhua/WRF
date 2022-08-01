@@ -101,6 +101,7 @@ module wrf_data_pnc
     ! a timer to measure costs of posting bput calls
     real*8                                :: BputTiming = 0
     real*8                                :: WaitTiming = 0
+    real*8                                :: CalcBufferTiming = 0
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -1034,6 +1035,23 @@ subroutine ext_pnc_bput_wait(hndl)
   endif
 end subroutine ext_pnc_bput_wait
 
+
+subroutine ext_pnc_set_timing_buffer_size(hndl, timef)
+  use wrf_data_pnc
+  use ext_pnc_support_routines
+  implicit none
+  include 'wrf_status_codes.h'
+#  include "pnetcdf.inc"
+  integer, INTENT(IN)  :: hndl
+  real*8, INTENT(IN) :: timef
+  type(wrf_data_handle), pointer :: DH
+  integer :: ierr, status, dummy(0)
+
+  call GetDH(hndl,DH,ierr)
+  DH%CalcBufferTiming = timef
+
+end subroutine ext_pnc_set_timing_buffer_size
+
 subroutine ext_pnc_open_for_read(DatasetName, Comm1, Comm2, SysDepInfo, DataHandle, Status)
   use wrf_data_pnc
   use ext_pnc_support_routines
@@ -1613,6 +1631,9 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
     call PrintTimingMessage(&
       '("PnetCDF: Timing for posting all NFMPI_BPUT calls for file ",A,"=",F10.5," seconds")',&
       DH%BputTiming,TRIM(DH%FileName), DH%Comm)
+    call PrintTimingMessage(&
+      '("PnetCDF: Timing for calculating buffer sizes for file ",A,"=",F10.5," seconds")',&
+      DH%CalcBufferTiming,TRIM(DH%FileName), DH%Comm)
   else
     call PrintTimingMessage(&
       '("PnetCDF: Timing for all NFMPI_PUT calls for file ",A,"=",F10.5" seconds")',&

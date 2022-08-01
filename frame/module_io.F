@@ -98,6 +98,19 @@ SUBROUTINE BputWait(fid)
 #endif
 END SUBROUTINE BputWait
 
+SUBROUTINE BputSetTimingBufferSize(fid, timef)
+  INTEGER, INTENT(IN) :: fid
+  REAL*8, INTENT(IN) :: timef
+  INTEGER :: Hndl, Hopened
+  LOGICAL :: for_out
+
+#ifdef PNETCDF
+  call get_handle(Hndl, Hopened, for_out, fid)
+  call ext_pnc_set_timing_buffer_size(Hndl, timef)
+#endif
+END SUBROUTINE BputSetTimingBufferSize
+
+
 !--- ioinit
 
 SUBROUTINE wrf_ioinit( Status )
