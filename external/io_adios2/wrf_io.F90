@@ -68,6 +68,7 @@ module wrf_data_adios2
      type(adios2_engine)                   :: adios2Engine
      type(adios2_operator)                 :: compress_operator
      character(32)                         :: blosc_compressor
+     real*8                                 :: timings(10)
    end type wrf_data_handle
    type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
  end module wrf_data_adios2
@@ -177,6 +178,10 @@ module ext_adios2_support_routines
    DH%Write     =.false.
    DH%first_operation  = .TRUE.
    Status = WRF_NO_ERR
+   do i=1,10
+    DH%timings(i) = 0
+   enddo
+
  end subroutine allocHandle
  
  subroutine deallocHandle(DataHandle, Status)
@@ -262,6 +267,9 @@ module ext_adios2_support_routines
          return
        endif
        DH%Free      =.TRUE.
+       do i=1,10
+        DH%timings(i) = 0
+       enddo
      endif
    ENDIF
    Status = WRF_NO_ERR
@@ -624,6 +632,7 @@ module ext_adios2_support_routines
    use wrf_data_adios2
    use adios2
    include 'wrf_status_codes.h'
+   include 'mpif.h'
    character (*)              ,intent(in)    :: IO
    integer                    ,intent(in)    :: DataHandle
    character*(*)              ,intent(in)    :: DateStr
@@ -640,6 +649,7 @@ module ext_adios2_support_routines
    integer(kind=8),dimension(NVarDims)       :: VCount
    integer(kind=8)                           :: TimeIndex_int8
    integer                                   :: stat
+   type(wrf_data_handle) ,pointer            :: DH
  
    call GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
    if(Status /= WRF_NO_ERR) then
@@ -664,6 +674,13 @@ module ext_adios2_support_routines
    VCount(:) = 1
    VStart(1:NDim) = Starts(1:NDim)
    VCount(1:NDim) = Length(1:NDim)
+   DH => WrfDataHandles(DataHandle)
+
+   if(IO == 'write') then
+    DH%timings(1) = DH%timings(1) - MPI_Wtime()
+   else
+    DH%timings(2) = DH%timings(2) - MPI_Wtime()
+   endif
    select case (FieldType)
      case (WRF_REAL)
        call ext_adios2_RealFieldIO    (IO, DataHandle,VarID,VStart,VCount,XField,Status)
@@ -681,6 +698,13 @@ module ext_adios2_support_routines
        call wrf_debug ( WARN , TRIM(msg))
        return
    end select
+
+   if(IO == 'write') then
+    DH%timings(1) = DH%timings(1) + MPI_Wtime()
+   else
+    DH%timings(2) = DH%timings(2) + MPI_Wtime()
+   endif
+
    return
  end subroutine FieldIO
  
@@ -907,6 +931,7 @@ subroutine ext_adios2_open_for_read_begin( FileName, SysDepInfo, DataHandle, Sta
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   character*(*)         ,intent(IN)              :: FileName
   character*(*)         ,intent(in)              :: SysDepInfo
   integer               ,intent(out)             :: DataHandle
@@ -946,7 +971,11 @@ subroutine ext_adios2_open_for_read_begin( FileName, SysDepInfo, DataHandle, Sta
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+
+  DH%timings(3) = DH%timings(3) - MPI_Wtime()
   call adios2_open(DH%adios2Engine, DH%adios2IO, FileName, adios2_mode_read, stat)
+  DH%timings(3) = DH%timings(3) + MPI_Wtime()
+
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error in ext_adios2_open_for_read_begin ',__FILE__,', line', __LINE__
@@ -1040,6 +1069,7 @@ subroutine ext_adios2_open_for_update( FileName, SysDepInfo, DataHandle, Status)
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   character*(*)         ,intent(IN)              :: FileName
   character*(*)         ,intent(in)              :: SysDepInfo
   integer               ,intent(out)             :: DataHandle
@@ -1079,7 +1109,9 @@ subroutine ext_adios2_open_for_update( FileName, SysDepInfo, DataHandle, Status)
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+  DH%timings(3) = DH%timings(3) - MPI_Wtime()
   call adios2_open(DH%adios2Engine, DH%adios2IO, FileName, adios2_mode_read, stat)
+  DH%timings(3) = DH%timings(3) + MPI_Wtime()
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error (',stat,') from adios2_open in ext_adios2_open_for_update ',__FILE__,', line', __LINE__
@@ -1382,6 +1414,7 @@ SUBROUTINE ext_adios2_open_for_write_commit(DataHandle, Status)
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   integer              ,intent(in)  :: DataHandle
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
@@ -1400,7 +1433,9 @@ SUBROUTINE ext_adios2_open_for_write_commit(DataHandle, Status)
     call wrf_debug ( WARN , TRIM(msg)) 
     return
   endif
+  DH%timings(3) = DH%timings(3) - MPI_Wtime()
   call adios2_open(DH%adios2Engine, DH%adios2IO, DH%FileName, adios2_mode_write, stat)
+  DH%timings(3) = DH%timings(3) + MPI_Wtime()
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error (',stat,') from adios2_open in ext_adios2_open_for_write_commit ',__FILE__,', line', __LINE__
@@ -1418,10 +1453,13 @@ subroutine ext_adios2_ioclose(DataHandle, Status)
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   integer              ,intent(in)  :: DataHandle
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
   integer                           :: stat
+  real*8                            :: timef
+  real*8                            :: maxtimings(10)
 
   call GetDH(DataHandle,DH,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1449,15 +1487,31 @@ subroutine ext_adios2_ioclose(DataHandle, Status)
     call wrf_debug ( FATAL , TRIM(msg))
     return
   endif
+  DH%timings(4) = DH%timings(4) - MPI_Wtime()
   call adios2_close(DH%adios2Engine, stat)
+  DH%timings(4) = DH%timings(4) + MPI_Wtime()
+
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error in ext_adios2_ioclose ',__FILE__,', line', __LINE__
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+
+  ! CALL MPI_REDUCE(DH%timings, maxtimings, 10, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, stat)
+
+  write(msg,'("ADIOS2: Timing for writing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(1)
+  call wrf_message(TRIM(msg))
+  write(msg,'("ADIOS2: Timing for reading file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(2)
+  call wrf_message(TRIM(msg))
+  write(msg,'("ADIOS2: Timing for openning file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(3)
+  call wrf_message(TRIM(msg))
+  write(msg,'("ADIOS2: Timing for closing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(4)
+  call wrf_message(TRIM(msg))
+
   CALL deallocHandle( DataHandle, Status )
   DH%Free=.true.
+
   return
 end subroutine ext_adios2_ioclose
 
@@ -1589,6 +1643,8 @@ subroutine ext_adios2_ioinit(SysDepInfo, Status)
   integer                   :: stat, rank, ierror
   INTEGER ,INTENT(INOUT)    :: Status
   logical                   :: file_exists=.FALSE.
+  real*8                    :: timef = 0
+  real*8                    :: maxtime = 0
     
   WrfIOnotInitialized                             = .false.
   WrfDataHandles(1:WrfDataHandleMax)%Free         = .true.
@@ -1598,17 +1654,24 @@ subroutine ext_adios2_ioinit(SysDepInfo, Status)
   Status = WRF_NO_ERR
   !look for adios2 xml runtime configuration
   INQUIRE(FILE="adios2.xml", EXIST=file_exists)  
+  timef = MPI_Wtime()
   if(file_exists) then
     call adios2_init(adios, 'adios2.xml', MPI_COMM_WORLD, adios2_debug_mode_on, stat)
   else
     call adios2_init(adios, MPI_COMM_WORLD, adios2_debug_mode_on, stat)
   endif
+  timef = MPI_Wtime() - timef
+  CALL MPI_REDUCE(timef, maxtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, ierror)
+
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error in ext_adios2_ioinit ',__FILE__,', line', __LINE__
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+  write(msg,'("ADIOS2: Timing for ext_adios2_ioinit = ",F10.5," seconds")'), maxtime
+  call wrf_message(TRIM(msg))
+
   return
 end subroutine ext_adios2_ioinit
 
@@ -1646,11 +1709,14 @@ subroutine ext_adios2_ioexit(Status)
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   integer       , INTENT(INOUT)     :: Status
   integer                           :: error
   type(wrf_data_handle),pointer     :: DH
   integer                           :: i
   integer                           :: stat
+  real*8                    :: timef = 0
+  real*8                    :: maxtime = 0
   
   if(WrfIOnotInitialized) then
     Status = WRF_IO_NOT_INITIALIZED 
@@ -1661,13 +1727,18 @@ subroutine ext_adios2_ioexit(Status)
   do i=1,WrfDataHandleMax
     CALL deallocHandle( i , stat ) 
   enddo
+  timef = MPI_Wtime()
   call adios2_finalize(adios, stat)
+  timef = MPI_Wtime() - timef
+  CALL MPI_REDUCE(timef, maxtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, error)
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error in ext_adios2_ioexit ',__FILE__,', line', __LINE__
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+  write(msg,'("ADIOS2: Timing for ext_adios2_ioexit = ",F10.5," seconds")'), maxtime
+  call wrf_message(TRIM(msg))
   return
 end subroutine ext_adios2_ioexit
 
