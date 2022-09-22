@@ -19,6 +19,7 @@
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   integer               ,intent(in)     :: DataHandle
   character*(*)         ,intent(in)     :: Element
   character*(*)         ,intent(in)     :: Var
@@ -88,8 +89,10 @@
          Buffer(i)=0
       endif
     enddo
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     call adios2_define_attribute(AttributeID,DH%adios2IO, trim(Element), &
               Buffer, Count, DH%VarIDs(NVar)%name, stat)
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'ext_adios2_put_var_ti: adios2 error in ',__FILE__,', line', __LINE__ 
@@ -97,8 +100,10 @@
       return
     endif
 #elif defined(CHAR_TYPE)
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     call adios2_define_attribute(AttributeID,DH%adios2IO, trim(Element), &
               Data, 1, DH%VarIDs(NVar)%name, stat)
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'ext_adios2_put_var_ti: adios2 error in ',__FILE__,', line', __LINE__ 
@@ -106,8 +111,10 @@
       return
     endif
 #else
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     call adios2_define_attribute(AttributeID,DH%adios2IO, trim(Element), &
               Data, Count, DH%VarIDs(NVar)%name, stat)
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'ext_adios2_put_var_ti : adios2 error in ',__FILE__,', line', __LINE__ 

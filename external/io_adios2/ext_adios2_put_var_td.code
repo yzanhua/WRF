@@ -19,6 +19,7 @@
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   integer               ,intent(in)     :: DataHandle
   character*(*)         ,intent(in)     :: Element
   character*(*)         ,intent(in)     :: DateStr
@@ -99,8 +100,10 @@
       if(DH%DimLengths(i) == LENGTH) then
         exit
       elseif(DH%DimLengths(i) == NO_DIM) then
+        DH%timings(6) = DH%timings(6) - MPI_Wtime()
         call adios2_define_attribute(DH%DimIDs(i), DH%adios2IO, '_DIM_'//DH%DimNames(i), &
               LENGTH, stat)
+        DH%timings(6) = DH%timings(6) + MPI_Wtime()
         call adios2_err(stat,Status)
         if(Status /= WRF_NO_ERR) then
           write(msg,*) 'adios2 error in ext_adios2_RealFieldIO ',__FILE__,', line', __LINE__
@@ -122,16 +125,22 @@
     DimNamesOut(2) = DH%DimUnlimName
     zero(1) = 0
     shape_dims(1) = LENGTH
+
+    DH%timings(5) = DH%timings(5) - MPI_Wtime()
     call adios2_define_variable(DH%MDVarIDs(NVar), DH%adios2IO, Name, ADIOS2TYPE, &
                                 stat)
+    DH%timings(5) = DH%timings(5) + MPI_Wtime()
+
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'adios2 error in ext_adios2_put_var_td ',__FILE__,', line', __LINE__
       call wrf_debug ( WARN , TRIM(msg))
       return
     endif
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     call adios2_define_attribute(AttributeID,DH%adios2IO, 'Dims', &
               DimNamesOut, 2, DH%MDVarIDs(NVar)%name, '/', stat)
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'adios2 error in ext_adios2_put_var_td ',__FILE__,', line', __LINE__
