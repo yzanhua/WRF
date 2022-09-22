@@ -328,7 +328,7 @@ RECURSIVE SUBROUTINE integrate ( grid )
          DO WHILE ( .NOT. domain_clockisstopsubtime(grid) )
             IF ( wrf_dm_on_monitor() ) THEN
 IF ( grid%active_this_task ) THEN
-               CALL start_timing
+               !CALL start_timing
 END IF
             END IF
             CALL med_setup_step ( grid , config_flags )
@@ -390,7 +390,7 @@ IF ( grid_ptr%active_this_task ) THEN
                   CALL set_current_grid_ptr( grid_ptr )
                   CALL wrf_debug( 100 , 'module_integrate: calling solve interface ' )
 
-                  CALL solve_interface ( grid_ptr ) 
+                  !CALL solve_interface ( grid_ptr ) 
 
 ENDIF
                CALL domain_clockadvance ( grid_ptr )
@@ -474,7 +474,7 @@ IF ( grid%active_this_task ) THEN
 #else
                   WRITE ( message , FMT = '("main: time ",A," on domain ",I3)' ) TRIM(message2), grid%id
 #endif
-               CALL end_timing ( TRIM(message) )
+               !CALL end_timing ( TRIM(message) )
 ENDIF ! active_this_task
             ENDIF
 #if ( WRFPLUS == 1 )
