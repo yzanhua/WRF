@@ -1220,6 +1220,7 @@ SUBROUTINE ext_adios2_open_for_write_begin(FileName,SysDepInfo,Iotype,DataHandle
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   character*(*)        ,intent(in)  :: FileName
   character*(*)        ,intent(in)  :: SysDepInfo
   character*(*)        ,intent(in)  :: Iotype
@@ -1276,16 +1277,24 @@ SUBROUTINE ext_adios2_open_for_write_begin(FileName,SysDepInfo,Iotype,DataHandle
     DH%DimLengths(i) = NO_DIM
   enddo
   DH%DimNames(1) = 'DateStrLen'
+
+  DH%timings(6) = DH%timings(6) - MPI_Wtime()
   call adios2_define_attribute(DH%DimIDs(1), DH%adios2IO, '_DIM_DateStrLen', &
       DateStrLen, stat)
+  DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error in ext_adios2_open_for_write_begin ',__FILE__,', line', __LINE__
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+
   !define "Times" variable and dimension attribute
+  DH%timings(5) = DH%timings(5) - MPI_Wtime()
   call adios2_define_variable(DH%TimesVarID, DH%adios2IO, DH%TimesName, adios2_type_character, stat)
+  DH%timings(5) = DH%timings(5) + MPI_Wtime()
+
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error in ext_adios2_open_for_write_begin ',__FILE__,', line', __LINE__
@@ -1294,7 +1303,11 @@ SUBROUTINE ext_adios2_open_for_write_begin(FileName,SysDepInfo,Iotype,DataHandle
   endif
   DimNamesOut(1) = 'DateStrLen'
   DimNamesOut(2) = 'Time'
+
+  DH%timings(6) = DH%timings(6) - MPI_Wtime()
   call adios2_define_attribute(timeAttribute,DH%adios2IO, 'Dims', DimNamesOut, 2, DH%TimesVarID%name, '/', stat)
+  DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error in ext_adios2_open_for_write_begin ',__FILE__,', line', __LINE__
@@ -1457,7 +1470,7 @@ subroutine ext_adios2_ioclose(DataHandle, Status)
   integer              ,intent(in)  :: DataHandle
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
-  integer                           :: stat
+  integer                           :: stat, i
   real*8                            :: timef
   real*8                            :: maxtimings(10)
 
@@ -1498,15 +1511,24 @@ subroutine ext_adios2_ioclose(DataHandle, Status)
     return
   endif
 
-  ! CALL MPI_REDUCE(DH%timings, maxtimings, 10, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, stat)
+  do i=1, 10
+    maxtimings(i) = 0
+  enddo
+  CALL MPI_REDUCE(DH%timings, maxtimings, 10, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, stat)
+  write(msg,*) "Closing file ", TRIM(DH%FileName)
+  call wrf_message(TRIM(msg))
 
-  write(msg,'("ADIOS2: Timing for writing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(1)
+  write(msg,'("    ADIOS2: Timing for writing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(1)
   call wrf_message(TRIM(msg))
-  write(msg,'("ADIOS2: Timing for reading file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(2)
+  write(msg,'("    ADIOS2: Timing for reading file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(2)
   call wrf_message(TRIM(msg))
-  write(msg,'("ADIOS2: Timing for openning file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(3)
+  write(msg,'("    ADIOS2: Timing for openning file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(3)
   call wrf_message(TRIM(msg))
-  write(msg,'("ADIOS2: Timing for closing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(4)
+  write(msg,'("    ADIOS2: Timing for closing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(4)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    ADIOS2: Timing for def_var for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(5)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    ADIOS2: Timing for def_attr for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(6)
   call wrf_message(TRIM(msg))
 
   CALL deallocHandle( DataHandle, Status )
@@ -2321,6 +2343,7 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   integer                       ,intent(in)    :: DataHandle
   character*(*)                 ,intent(in)    :: DateStr
   character*(*)                 ,intent(in)    :: Var
@@ -2433,8 +2456,12 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
           if(DH%DimLengths(i) == Length_global(j)) then
             exit
           elseif(DH%DimLengths(i) == NO_DIM) then
+
+            DH%timings(6) = DH%timings(6) - MPI_Wtime()
             call adios2_define_attribute(DH%DimIDs(i), DH%adios2IO, '_DIM_'//DH%DimNames(i), &
               Length_global(j), stat)
+            DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
             call adios2_err(stat,Status)
             if(Status /= WRF_NO_ERR) then
               write(msg,*) 'adios2 error in ',__FILE__,', line', __LINE__
@@ -2470,8 +2497,12 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
           do i=1,MaxDims
             if (DH%DimLengths(i) == NO_DIM) then
               DH%DimNames(i) = RODimNames(j)
+
+              DH%timings(6) = DH%timings(6) - MPI_Wtime()
               call adios2_define_attribute(DH%DimIDs(i), DH%adios2IO, '_DIM_'//DH%DimNames(i), &
               Length_global(j), stat)
+              DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
               call adios2_err(stat,Status)
               if(Status /= WRF_NO_ERR) then
                 write(msg,*) 'adios2 error in ',__FILE__,', line', __LINE__
@@ -2509,6 +2540,8 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
     end select
     zero(:) = 0
     shape_dims(:) = Length_global(:)
+
+    DH%timings(5) = DH%timings(5) - MPI_Wtime()
     if(NDim == 0) then
       shape_dims(:) = 1
       call adios2_define_variable(VarID, DH%adios2IO, VarName, XType, &
@@ -2519,6 +2552,8 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
                                NDim, shape_dims, zero, zero, &
                               adios2_variable_dims, stat)
     endif
+    DH%timings(5) = DH%timings(5) + MPI_Wtime()
+
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'ext_adios2_write_field: adios2 error for ',TRIM(VarName),' in ',__FILE__,', line', __LINE__
@@ -2549,17 +2584,25 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
     do j = 1,NDim
       DimNamesOut(j) = DH%DimNames(VDimIDs(j))
     end do
-    DimNamesOut(NDim+1) = DH%DimUnlimName  
+    DimNamesOut(NDim+1) = DH%DimUnlimName
+
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     call adios2_define_attribute(AttributeID,DH%adios2IO, 'Dims', &
               DimNamesOut, NDim+1, VarID%name, '/', stat)
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'ext_adios2_write_field: adios2 error in ',__FILE__,', line', __LINE__ 
       call wrf_debug ( WARN , TRIM(msg))
       return
     endif
+
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     call adios2_define_attribute(AttributeID,DH%adios2IO, 'FieldType', &
               FieldType, VarID%name, stat)
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'ext_adios2_write_field: adios2 error in ',__FILE__,', line', __LINE__ 
@@ -2568,8 +2611,12 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
     endif
     call reorder(MemoryOrder,MemO)
     call uppercase(MemO,UCMemO)
+
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     call adios2_define_attribute(AttributeID, DH%adios2IO, 'MemoryOrder', &
              UCMemO, VarID%name, stat)
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'ext_adios2_write_field: adios2 error in ',__FILE__,', line', __LINE__ 
