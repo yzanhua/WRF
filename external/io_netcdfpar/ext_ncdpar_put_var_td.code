@@ -117,7 +117,9 @@
       if(DH%DimLengths(i) == LENGTH) then
         exit
       elseif(DH%DimLengths(i) == NO_DIM) then
+        DH%timings(8) = DH%timings(8) - MPI_Wtime()
         stat = NF_DEF_DIM(NCID,DH%DimNames(i),LENGTH,DH%DimIDs(i))
+        DH%timings(8) = DH%timings(8) + MPI_Wtime()
         call netcdf_err(stat,Status)
         if(Status /= WRF_NO_ERR) then
           write(msg,*) &
@@ -138,7 +140,9 @@
     DH%MDVarDimLens(NVar) = LENGTH
     VDims(1) = DH%DimIDs(i)
     VDims(2) = DH%DimUnlimID
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     stat = NF_DEF_VAR(NCID,Name,NF_TYPE,2,VDims,DH%MDVarIDs(NVar))
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) &
