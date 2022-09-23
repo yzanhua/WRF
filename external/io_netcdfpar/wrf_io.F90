@@ -100,6 +100,7 @@ module wrf_data_ncpar
     logical                               :: use_netcdf_classic
     logical                               :: Collective
     integer                               :: ind_or_collective
+    real*8                                :: timings(10)
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_ncpar
@@ -216,6 +217,9 @@ subroutine allocHandle(DataHandle,DH,Comm,Status)
   DH%Collective = .TRUE.
   DH%ind_or_collective  = NF_COLLECTIVE
   Status = WRF_NO_ERR
+  do i=1,10
+    DH%timings(i) = 0
+  enddo
 end subroutine allocHandle
 
 subroutine deallocHandle(DataHandle, Status)
@@ -301,6 +305,9 @@ subroutine deallocHandle(DataHandle, Status)
         return
       endif
       DH%Free      =.TRUE.
+      do i=1,10
+        DH%timings(i) = 0
+      enddo
     endif
   ENDIF
   Status = WRF_NO_ERR
@@ -709,6 +716,7 @@ subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
   integer                                   :: NDim
   integer,dimension(NVarDims)               :: VStart
   integer,dimension(NVarDims)               :: VCount
+  type(wrf_data_handle) ,pointer            :: DH
 
   call GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   if(Status /= WRF_NO_ERR) then
@@ -727,6 +735,13 @@ VCount(:) = 1
   VStart(NDim+1) = TimeIndex
   VCount(NDim+1) = 1
 
+  DH => WrfDataHandles(DataHandle)
+  if(IO == 'write') then
+    DH%timings(1) = DH%timings(1) - MPI_Wtime()
+  else
+    DH%timings(2) = DH%timings(2) - MPI_Wtime()
+  endif
+
   ! Do not use SELECT statement here as sometimes WRF_REAL=WRF_DOUBLE
   IF (FieldType == WRF_REAL) THEN
     call ext_ncdpar_RealFieldIO    (IO,NCID,VarID,VStart,VCount,XField,Status)
@@ -744,6 +759,11 @@ VCount(:) = 1
       call wrf_debug ( WARN , TRIM(msg))
       return
   END IF
+  if(IO == 'write') then
+    DH%timings(1) = DH%timings(1) + MPI_Wtime()
+  else
+    DH%timings(2) = DH%timings(2) + MPI_Wtime()
+  endif
 
   return
 end subroutine FieldIO
@@ -1085,7 +1105,9 @@ subroutine ext_ncdpar_open_for_read_begin( FileName, Comm, IOComm, SysDepInfo, D
   endif
 
 !  stat = NF_OPEN_PAR(FileName, NF_NOWRITE, comm, MPI_INFO_NULL, DH%NCID)
+  DH%timings(3) = DH%timings(3) - MPI_Wtime()
   stat = NF_OPEN(FileName, NF_NOWRITE, DH%NCID)
+  DH%timings(3) = DH%timings(3) + MPI_Wtime()
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -1226,7 +1248,11 @@ subroutine ext_ncdpar_open_for_update( FileName, Comm, IOComm, SysDepInfo, DataH
   endif
 !  stat = NF_OPEN(FileName, NF_WRITE, DH%NCID)
   open_mode = ior(NF_MPIIO, NF_WRITE)
+
+  DH%timings(4) = DH%timings(4) - MPI_Wtime()
   stat = NF_OPEN_PAR(FileName, open_mode, comm, MPI_INFO_NULL, DH%NCID)
+  DH%timings(4) = DH%timings(4) + MPI_Wtime()
+
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -1371,12 +1397,18 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   write(msg,*) 'output will be in classic NetCDF format'
   call wrf_debug ( WARN , TRIM(msg))
 #ifdef WRFIO_ncdpar_NO_LARGE_FILE_SUPPORT
+  DH%timings(9) = DH%timings(9) - MPI_Wtime()
   stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
+  DH%timings(9) = DH%timings(9) + MPI_Wtime()
 #else
+  DH%timings(9) = DH%timings(9) - MPI_Wtime()
   stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
+  DH%timings(9) = DH%timings(9) + MPI_Wtime()
 #endif
   else
+  DH%timings(9) = DH%timings(9) - MPI_Wtime()
   stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
+  DH%timings(9) = DH%timings(9) + MPI_Wtime()
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in NF_CREATE_PAR ext_ncdpar_open_for_write_begin ',__FILE__,', line', __LINE__
@@ -1387,9 +1419,13 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   endif
 #else
 #ifdef WRFIO_ncdpar_NO_LARGE_FILE_SUPPORT
+  DH%timings(9) = DH%timings(9) - MPI_Wtime()
   stat = NF_CREATE(FileName, NF_CLOBBER, DH%NCID)
+  DH%timings(9) = DH%timings(9) + MPI_Wtime()
 #else
+  DH%timings(9) = DH%timings(9) - MPI_Wtime()
   stat = NF_CREATE(FileName, IOR(NF_CLOBBER,NF_64BIT_OFFSET), DH%NCID)
+  DH%timings(9) = DH%timings(9) + MPI_Wtime()
 #endif
 #endif
   call netcdf_err(stat,Status)
@@ -1400,7 +1436,11 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   endif
   DH%FileStatus  = WRF_FILE_OPENED_NOT_COMMITTED
   DH%FileName    = trim(FileName)
+
+  DH%timings(8) = DH%timings(8) - MPI_Wtime()
   stat = NF_DEF_DIM(DH%NCID,DH%DimUnlimName,NF_UNLIMITED,DH%DimUnlimID)
+  DH%timings(8) = DH%timings(8) + MPI_Wtime()
+
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ext_ncdpar_open_for_write_begin ',__FILE__,', line', __LINE__
@@ -1415,7 +1455,9 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
     DH%DimLengths(i) = NO_DIM
   enddo
   DH%DimNames(1) = 'DateStrLen'
+  DH%timings(8) = DH%timings(8) - MPI_Wtime()
   stat = NF_DEF_DIM(DH%NCID,DH%DimNames(1),DateStrLen,DH%DimIDs(1))
+  DH%timings(8) = DH%timings(8) + MPI_Wtime()
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ext_ncdpar_open_for_write_begin ',__FILE__,', line', __LINE__
@@ -1424,7 +1466,11 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   endif
   VDimIDs(1) = DH%DimIDs(1)
   VDimIDs(2) = DH%DimUnlimID
+
+  DH%timings(6) = DH%timings(6) - MPI_Wtime()
   stat = NF_DEF_VAR(DH%NCID,DH%TimesName,NF_CHAR,2,VDimIDs,DH%TimesVarID)
+  DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ext_ncdpar_open_for_write_begin ',__FILE__,', line', __LINE__
@@ -1521,6 +1567,8 @@ subroutine ext_ncdpar_ioclose(DataHandle, Status)
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
   integer                           :: stat
+  real*8                            :: maxtimings(10)
+  integer                           :: i
 
   call GetDH(DataHandle,DH,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1549,15 +1597,46 @@ subroutine ext_ncdpar_ioclose(DataHandle, Status)
     return
   endif
 
+  DH%timings(5) = DH%timings(5) - MPI_Wtime()
   stat = NF_CLOSE(DH%NCID)
+  DH%timings(5) = DH%timings(5) + MPI_Wtime()
+
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ext_ncdpar_ioclose ',__FILE__,', line', __LINE__
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+
+  do i=1, 10
+    maxtimings(i) = 0
+  enddo
+  CALL MPI_REDUCE(DH%timings, maxtimings, 10, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, stat)
+  write(msg,*) "Closing file ", TRIM(DH%FileName)
+  call wrf_message(TRIM(msg))
+
+  write(msg,'("    NC4PAR: Timing for writing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(1)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for reading file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(2)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for open file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(3)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for open_par file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(4)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for closing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(5)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for def_var file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(6)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for def_var_chunking file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(7)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for def_dim file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(8)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for creating file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(9)
+  call wrf_message(TRIM(msg))
+
   CALL deallocHandle( DataHandle, Status )
   DH%Free=.true.
+
   return
 end subroutine ext_ncdpar_ioclose
 
@@ -2601,7 +2680,9 @@ endif
           if(DH%DimLengths(i) == Length_global(j)) then
             exit
           elseif(DH%DimLengths(i) == NO_DIM) then
+            DH%timings(8) = DH%timings(8) - MPI_Wtime()
             stat = NF_DEF_DIM(NCID,DH%DimNames(i),Length_global(j),DH%DimIDs(i))
+            DH%timings(8) = DH%timings(8) + MPI_Wtime()
             call netcdf_err(stat,Status)
             if(Status /= WRF_NO_ERR) then
               write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -2637,7 +2718,9 @@ endif
           do i=1,MaxDims
             if (DH%DimLengths(i) == NO_DIM) then
               DH%DimNames(i) = RODimNames(j)
+              DH%timings(8) = DH%timings(8) - MPI_Wtime()
               stat = NF_DEF_DIM(NCID,DH%DimNames(i),Length_global(j),DH%DimIDs(i))
+              DH%timings(8) = DH%timings(8) + MPI_Wtime()
               call netcdf_err(stat,Status)
               if(Status /= WRF_NO_ERR) then
                 write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -2676,7 +2759,10 @@ endif
         return
     END IF
 
+    DH%timings(6) = DH%timings(6) - MPI_Wtime()
     stat = NF_DEF_VAR(NCID,VarName,XType,NDim+1,VDimIDs,VarID)
+    DH%timings(6) = DH%timings(6) + MPI_Wtime()
+
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'ext_ncdpar_write_field: NetCDF error for ',TRIM(VarName),' in ',__FILE__,', line', __LINE__
@@ -2700,7 +2786,11 @@ endif
 !    write(unit=0, fmt='(10x, a,i6)')    'compression_level = ', compression_level
 
       IF ( .true. ) THEN
-     stat = NF_DEF_VAR_CHUNKING(NCID, VarID, NF_CHUNKED, chunks(1:NDim+1))
+
+      DH%timings(7) = DH%timings(7) - MPI_Wtime()
+      stat = NF_DEF_VAR_CHUNKING(NCID, VarID, NF_CHUNKED, chunks(1:NDim+1))
+      DH%timings(7) = DH%timings(7) + MPI_Wtime()
+
      call netcdf_err(stat,Status)
      if(Status /= WRF_NO_ERR) then
        write(msg,*) 'ext_ncdpar_write_field: NetCDF def chunking error for ',TRIM(VarName),' in ',__FILE__,', line', __LINE__
@@ -2948,7 +3038,9 @@ endif
           if(DH%DimLengths(i) == Length(j)) then
             exit
           elseif(DH%DimLengths(i) == NO_DIM) then
+            DH%timings(8) = DH%timings(8) - MPI_Wtime()
             stat = NF_DEF_DIM(NCID,DH%DimNames(i),Length(j),DH%DimIDs(i))
+            DH%timings(8) = DH%timings(8) + MPI_Wtime()
             call netcdf_err(stat,Status)
             if(Status /= WRF_NO_ERR) then
               write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -2984,7 +3076,9 @@ endif
           do i=1,MaxDims
             if (DH%DimLengths(i) == NO_DIM) then
               DH%DimNames(i) = RODimNames(j)
+              DH%timings(8) = DH%timings(8) - MPI_Wtime()
               stat = NF_DEF_DIM(NCID,DH%DimNames(i),Length(j),DH%DimIDs(i))
+              DH%timings(8) = DH%timings(8) + MPI_Wtime()
               call netcdf_err(stat,Status)
               if(Status /= WRF_NO_ERR) then
                 write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
