@@ -2688,17 +2688,9 @@ endif
   if(need_chunking > 0 ) then
      chunks(1:NDim) = Length(1:NDim)
      chunks(NDim+1) = 1
-     
-     IF( need_chunking == 3 ) THEN
-       IF ( 4*(chunks(3)/4) == chunks(3) ) THEN
-         chunks(3) = chunks(3)/4
-       ELSE
-         chunks(3) = chunks(3)/4 + 1
-       ENDIF
-     ENDIF
 
-     ! send size from rank 0 so that all use the same value for chunking
-      CALL MPI_Bcast(chunks, 2, MPI_INTEGER, 0, MPI_COMM_WORLD, mpi_error_code)
+    ! send size from rank 0 so that all use the same value for chunking
+    CALL MPI_Bcast(chunks, 2, MPI_INTEGER, 0, MPI_COMM_WORLD, mpi_error_code)
 
 !    write(unit=0, fmt='(2x, 3a,i6)')  'file: ', __FILE__, ', line: ', __LINE__
 !    write(unit=0, fmt='(2x, 3a)') TRIM(VarName),':'
