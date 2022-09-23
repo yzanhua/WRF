@@ -390,7 +390,7 @@ IF ( grid_ptr%active_this_task ) THEN
                   CALL set_current_grid_ptr( grid_ptr )
                   CALL wrf_debug( 100 , 'module_integrate: calling solve interface ' )
 
-                  CALL solve_interface ( grid_ptr ) 
+                  !CALL solve_interface ( grid_ptr ) 
 
 ENDIF
                CALL domain_clockadvance ( grid_ptr )
