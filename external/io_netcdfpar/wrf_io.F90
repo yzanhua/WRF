@@ -1367,8 +1367,8 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
 
 #ifdef USE_NETCDF4_FEATURES
   integer                           :: create_mode
-  integer, parameter                :: cache_size = 32, &
-                                       cache_nelem = 37, &
+  integer, parameter                :: cache_size = 131072, &
+                                       cache_nelem = 4133, &
                                        cache_preemption = 100
 #endif
 
