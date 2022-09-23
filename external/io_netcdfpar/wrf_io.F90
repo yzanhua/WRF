@@ -2696,28 +2696,6 @@ endif
          chunks(3) = chunks(3)/4 + 1
        ENDIF
      ENDIF
-     
-     
-     IF ( .false. ) THEN
-     chunks(1) = (Length(1) + 1)/2
-     chunks(2) = (Length(2) + 1)/2
-
-     block_size = 1
-     do i = 1, NDim
-        block_size = block_size * chunks(i)
-     end do
-
-     do while (block_size > cache_size)
-        chunks(1) = (chunks(1) + 1)/2
-        chunks(2) = (chunks(2) + 1)/2
-
-        block_size = 1
-        do i = 1, NDim
-           block_size = block_size * chunks(i)
-        end do
-     end do
-
-     ENDIF
 
      ! send size from rank 0 so that all use the same value for chunking
       CALL MPI_Bcast(chunks, 2, MPI_INTEGER, 0, MPI_COMM_WORLD, mpi_error_code)
