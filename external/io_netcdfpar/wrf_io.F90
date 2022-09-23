@@ -2738,14 +2738,6 @@ endif
        return
      endif
       ENDIF
-
-      stat = NF_DEF_VAR_DEFLATE(NCID, VarID, 1, 1, compression_level)
-      call netcdf_err(stat,Status)
-      if(Status /= WRF_NO_ERR) then
-         write(msg,*) 'ext_ncdpar_write_field: NetCDF def compression  error for ',TRIM(VarName),' in ',__FILE__,', line', __LINE__
-         call wrf_debug ( WARN , TRIM(msg))
-         return
-      endif
   endif
 #endif
 
