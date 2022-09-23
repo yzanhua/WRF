@@ -1362,28 +1362,20 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   endif
   DH%TimeIndex = 0
   DH%Times     = ZeroDate
-  !  create_mode  = ior(NF90_NETCDF4,nf90_iotype)
-    create_mode = IOR(nf_netcdf4, nf_classic_model) 
-    create_mode = IOR(create_mode, nf_mpiio) 
+  create_mode = IOR(NF_NETCDF4, NF_MPIIO)
+  create_mode = IOR(create_mode, NF_CLOBBER)
+  create_mode = IOR(create_mode, 262144)
 
 #ifdef USE_NETCDF4_FEATURES
-! create_mode = IOR(nf_netcdf4, nf_classic_model)
   if ( DH%use_netcdf_classic ) then
   write(msg,*) 'output will be in classic NetCDF format'
   call wrf_debug ( WARN , TRIM(msg))
 #ifdef WRFIO_ncdpar_NO_LARGE_FILE_SUPPORT
-!  stat = NF_CREATE(FileName, NF_CLOBBER, DH%NCID)
-    create_mode = IOR(create_mode, NF_CLOBBER) 
   stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
-!  stat = NF_OPEN_PAR(FileName, NF_NOWRITE, comm, MPI_INFO_NULL, DH%NCID)
 #else
-!  stat = NF_CREATE(FileName, IOR(NF_CLOBBER,NF_64BIT_OFFSET), DH%NCID)
-!  stat = NF_CREATE_PAR(FileName, IOR(NF_CLOBBER,NF_64BIT_OFFSET), comm, MPI_INFO_NULL, DH%NCID)
   stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
 #endif
   else
- ! create_mode = nf_netcdf4
-!  stat = NF_CREATE(FileName, create_mode, DH%NCID)
   stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1726,11 +1718,7 @@ subroutine ext_ncdpar_ioinit(SysDepInfo, Status)
   WrfDataHandles(1:WrfDataHandleMax)%TimesName    = 'Times'
   WrfDataHandles(1:WrfDataHandleMax)%DimUnlimName = 'Time'
   WrfDataHandles(1:WrfDataHandleMax)%FileStatus   = WRF_FILE_NOT_OPENED
-!  if(trim(SysDepInfo) == "use_netcdf_classic" ) then
-!     WrfDataHandles(1:WrfDataHandleMax)%use_netcdf_classic = .true.
-!  else
-     WrfDataHandles(1:WrfDataHandleMax)%use_netcdf_classic = .false.
-!  endif
+  WrfDataHandles(1:WrfDataHandleMax)%use_netcdf_classic = .false.
   Status = WRF_NO_ERR
   return
 end subroutine ext_ncdpar_ioinit
