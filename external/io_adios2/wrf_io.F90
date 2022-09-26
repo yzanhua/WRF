@@ -1369,6 +1369,7 @@ SUBROUTINE ext_adios2_start_io_timestep(DataHandle, Status)
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   integer              ,intent(in)  :: DataHandle
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
@@ -1381,7 +1382,9 @@ SUBROUTINE ext_adios2_start_io_timestep(DataHandle, Status)
     return
   endif
   if (DH%adios2Engine%valid .eqv. .true.) then
+    DH%timings(7) = DH%timings(7) - MPI_Wtime()
     call adios2_begin_step(DH%adios2Engine, stat)
+    DH%timings(7) = DH%timings(7) + MPI_Wtime()
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'adios2 error (',stat,') from adios2_begin_step in ext_adios2_start_io_timestep ',__FILE__,', line', __LINE__
@@ -1398,6 +1401,7 @@ SUBROUTINE ext_adios2_end_io_timestep(DataHandle, Status)
   use adios2
   implicit none
   include 'wrf_status_codes.h'
+  include 'mpif.h'
   integer              ,intent(in)  :: DataHandle
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
@@ -1410,7 +1414,9 @@ SUBROUTINE ext_adios2_end_io_timestep(DataHandle, Status)
     return
   endif
   if (DH%adios2Engine%valid .eqv. .true.) then
+    DH%timings(8) = DH%timings(8) - MPI_Wtime()
     call adios2_end_step(DH%adios2Engine, stat)
+    DH%timings(8) = DH%timings(8) + MPI_Wtime()
     call adios2_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'adios2 error (',stat,') from adios2_end_step in ext_adios2_end_io_timestep ',__FILE__,', line', __LINE__
@@ -1529,6 +1535,10 @@ subroutine ext_adios2_ioclose(DataHandle, Status)
   write(msg,'("    ADIOS2: Timing for def_var for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(5)
   call wrf_message(TRIM(msg))
   write(msg,'("    ADIOS2: Timing for def_attr for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(6)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    ADIOS2: Timing for begin_step for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(7)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    ADIOS2: Timing for end_step for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(8)
   call wrf_message(TRIM(msg))
 
   CALL deallocHandle( DataHandle, Status )
