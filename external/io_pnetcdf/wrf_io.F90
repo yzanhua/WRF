@@ -1026,6 +1026,31 @@ SUBROUTINE PrintBufferSize(DH)
 #endif
 END SUBROUTINE PrintBufferSize
 
+SUBROUTINE PrintMPIInfo(info, FileName)
+  INTEGER, INTENT(IN) :: info
+  CHARACTER*80, INTENT(IN) :: FileName
+  INTEGER :: i, nkeys, ierr
+  character*254 :: key, value, msg
+  INTEGER :: valuelen, flag
+
+  CALL MPI_INFO_GET_NKEYS(info, nkeys, ierr)
+  if (ierr .ne. MPI_SUCCESS) THEN
+    call MPI_Error_string(ierr, value, valuelen, i)
+    write(msg,*) TRIM(FileName), ": MPI File Info: error: ", value
+    call wrf_message(TRIM(msg))
+  ENDIF
+  write(msg,*) TRIM(FileName), ": MPI File Info: nkeys = ", nkeys
+  call wrf_message(TRIM(msg))
+  do i=0,nkeys-1
+    call MPI_INFO_GET_NTHKEY(info, i, key, ierr)
+    call MPI_INFO_GET_VALUELEN(info, key, valuelen, flag, ierr)
+    call MPI_INFO_GET(info, key, valuelen+1, value, flag, ierr)
+    write(msg,'("MPI File Info: ",I0," key = ",A,", value = ",A)') &
+    i, TRIM(key), TRIM(value)
+    call wrf_message(TRIM(msg))
+  enddo
+END SUBROUTINE PrintMPIInfo
+
 end module ext_pnc_support_routines
 
 ! ext_pnc_bput_set_buffer_size:
@@ -1466,7 +1491,7 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   integer              ,intent(out) :: DataHandle
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
-  integer                           :: i
+  integer                           :: info, i
   integer                           :: stat
   character (7)                     :: Buffer
   integer                           :: VDimIDs(2)
@@ -1490,6 +1515,9 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   endif
   DH%TimeIndex = 0
   DH%Times     = ZeroDate
+  call MPI_INFO_CREATE(info, ierr)
+  call MPI_INFO_SET(info, "romio_ds_write", "disable", ierr)
+  call MPI_INFO_SET(info, "romio_cb_write", "enable", ierr)
 
 #ifndef BLUEGENE
 
@@ -1503,18 +1531,20 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   timef = MPI_Wtime()
   stat = NFMPI_CREATE(Comm, newFileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), MPI_INFO_NULL, DH%NCID)
   DH%CreateTiming = MPI_Wtime() - timef
+  call PrintMPIInfo(info, newFileName)
 
 ! stat = NFMPI_CREATE(Comm, newFileName, NF_64BIT_OFFSET, info, DH%NCID)
 #else
 !!!!!!!!!!!!!!!
-! rob latham suggested hint
   timef = MPI_Wtime()
   stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), MPI_INFO_NULL, DH%NCID)
   DH%CreateTiming = MPI_Wtime() - timef
+  call PrintMPIInfo(info, FileName)
 
 !
 !!!!!!!!!!!!!!! 
 #endif
+  call MPI_INFO_FREE(info, ierr)
 
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
