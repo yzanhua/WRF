@@ -1470,7 +1470,7 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   integer                           :: stat
   character (7)                     :: Buffer
   integer                           :: VDimIDs(2)
-  integer                           :: info, ierr   ! added for Blue Gene (see NF_CREAT below)
+  integer                           :: ierr   ! added for Blue Gene (see NF_CREAT below)
   character*1024                    :: newFileName
   integer                           :: gridid
   integer local_communicator_x, ntasks_x
@@ -1492,12 +1492,6 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   DH%Times     = ZeroDate
 
 #ifndef BLUEGENE
-  call mpi_info_create( info, ierr )
-# ifdef LUSTRE_FS
-  CALL mpi_info_set(info,"romio_ds_write","disable", ierr) ; write(0,*)'mpi_info_set write returns ',ierr
-  CALL mpi_info_set(info,"romio_ds_read","disable", ierr) ; write(0,*)'mpi_info_set read returns ',ierr
-# endif
-
 
 ! Remove the dash/underscore change to filenames for pnetcdf...
   write(newFileName, fmt="(a)") TRIM(ADJUSTL(FileName))
@@ -1507,24 +1501,17 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   enddo
 
   timef = MPI_Wtime()
-  stat = NFMPI_CREATE(Comm, newFileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
+  stat = NFMPI_CREATE(Comm, newFileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), MPI_INFO_NULL, DH%NCID)
   DH%CreateTiming = MPI_Wtime() - timef
 
 ! stat = NFMPI_CREATE(Comm, newFileName, NF_64BIT_OFFSET, info, DH%NCID)
-  call mpi_info_free( info, ierr)
 #else
 !!!!!!!!!!!!!!!
 ! rob latham suggested hint
-
-  call mpi_info_create( info, ierr )
-!  call mpi_info_set(info,'cd_buffer_size','4194304',ierr)
-  call mpi_info_set(info,'cd_buffer_size','8388608',ierr)
-
   timef = MPI_Wtime()
-  stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), info, DH%NCID)
+  stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), MPI_INFO_NULL, DH%NCID)
   DH%CreateTiming = MPI_Wtime() - timef
 
-  call mpi_info_free( info, ierr)
 !
 !!!!!!!!!!!!!!! 
 #endif
