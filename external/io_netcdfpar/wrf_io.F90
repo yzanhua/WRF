@@ -1389,7 +1389,6 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   endif
   DH%TimeIndex = 0
   DH%Times     = ZeroDate
-  ! grid%enable_pnetcdf_bput
   CALL nl_get_nc4par_use_phdf5(1, use_phdf5)
   if (use_phdf5) then
     create_mode = IOR(NF_NETCDF4, NF_CLOBBER)
@@ -1397,6 +1396,7 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   else
     create_mode = IOR(NF_64BIT_OFFSET, NF_CLOBBER)
   endif
+  DH%use_netcdf_classic = .NOT. use_phdf5
 
 #ifdef USE_NETCDF4_FEATURES
   if ( DH%use_netcdf_classic ) then
@@ -2778,7 +2778,7 @@ endif
 
 #ifdef USE_NETCDF4_FEATURES
   if(need_chunking > 0 ) then
-     chunks(1:NDim) = Length(1:NDim)
+     chunks(1:NDim) = Length_global(1:NDim)
      chunks(NDim+1) = 1
 
     ! send size from rank 0 so that all use the same value for chunking
