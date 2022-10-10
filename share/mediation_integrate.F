@@ -1130,7 +1130,7 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
   ! Model layer
 !   USE module_bc_time_utilities
    USE module_utility
-   USE module_io, ONLY : PncSetOutputWrfTime
+   USE module_io, ONLY : SetTotalIOtime
 
    IMPLICIT NONE
 
@@ -1171,9 +1171,9 @@ RECURSIVE SUBROUTINE med_restart_out ( grid , config_flags )
    CALL output_restart ( rid, grid , config_flags , ierr )
 
    IF ( wrf_dm_on_monitor() ) THEN
-     timef = now_time() - timef
-     CALL PncSetOutputWrfTime(rid, timef)
-   END IF
+      timef = now_time() - timef
+      CALL SetTotalIOtime(rid, timef, grid%io_form_restart)
+    END IF
    CALL close_dataset ( rid , config_flags , "DATASET=RESTART" )
 
    ! call recursively for children, (if any)
@@ -1198,7 +1198,7 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
    USE module_dm, ONLY : intercomm_active
 !   USE module_bc_time_utilities
    USE module_utility
-   USE module_io, ONLY : PncSetOutputWrfTime
+   USE module_io, ONLY : SetTotalIOtime
 
    IMPLICIT NONE
   ! Arguments
@@ -1243,7 +1243,7 @@ SUBROUTINE med_hist_out ( grid , stream, config_flags )
 
    IF ( wrf_dm_on_monitor() ) THEN
      timef = now_time() - timef
-     CALL PncSetOutputWrfTime(grid%oid, timef)
+     CALL SetTotalIOtime(grid%oid, timef, grid%io_form_restart)
    END IF
 
    SELECT CASE( stream )

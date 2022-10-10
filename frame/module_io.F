@@ -110,16 +110,30 @@ SUBROUTINE BputSetTimingBufferSize(fid, timef)
 #endif
 END SUBROUTINE BputSetTimingBufferSize
 
-SUBROUTINE PncSetOutputWrfTime(fid, timef)
+SUBROUTINE SetTotalIOtime(fid, timef, io_form)
   INTEGER, INTENT(IN) :: fid
   REAL*8, INTENT(IN) :: timef
+  INTEGER, INTENT(IN) :: io_form
   INTEGER :: Hndl, Hopened
   LOGICAL :: for_out
-#ifdef PNETCDF
+
   call get_handle(Hndl, Hopened, for_out, fid)
-  call ext_pnc_set_output_wrf_time(Hndl, timef)
+
+  SELECT CASE (io_form)
+#ifdef PNETCDF
+  CASE(io_pnetcdf)
+    call ext_pnc_set_total_io_time(Hndl, timef)
 #endif
-END SUBROUTINE PncSetOutputWrfTime
+#ifdef NETCDFPAR
+  CASE(io_netcdfpar)
+    CALL ext_ncdpar_set_total_io_time( Hndl, timef)
+#endif
+#ifdef ADIOS2
+  CASE(IO_ADIOS2)
+    CALL ext_adios2_set_total_io_time ( Hndl, timef )
+#endif
+  ENDSELECT
+END SUBROUTINE SetTotalIOtime
 
 !--- ioinit
 

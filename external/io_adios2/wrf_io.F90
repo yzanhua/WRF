@@ -1532,13 +1532,15 @@ subroutine ext_adios2_ioclose(DataHandle, Status)
   call wrf_message(TRIM(msg))
   write(msg,'("    ADIOS2: Timing for closing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(4)
   call wrf_message(TRIM(msg))
-  write(msg,'("    ADIOS2: Timing for def_var for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(5)
+  write(msg,'("    ADIOS2: Timing for def_var file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(5)
   call wrf_message(TRIM(msg))
-  write(msg,'("    ADIOS2: Timing for def_attr for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(6)
+  write(msg,'("    ADIOS2: Timing for def_attr file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(6)
   call wrf_message(TRIM(msg))
-  write(msg,'("    ADIOS2: Timing for begin_step for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(7)
+  write(msg,'("    ADIOS2: Timing for begin_step file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(7)
   call wrf_message(TRIM(msg))
-  write(msg,'("    ADIOS2: Timing for end_step for file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(8)
+  write(msg,'("    ADIOS2: Timing for end_step file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(8)
+  call wrf_message(TRIM(msg))
+  write(msg,'("    ADIOS2: Timing for total_io_without_closing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(9)
   call wrf_message(TRIM(msg))
 
   CALL deallocHandle( DataHandle, Status )
@@ -1546,6 +1548,18 @@ subroutine ext_adios2_ioclose(DataHandle, Status)
 
   return
 end subroutine ext_adios2_ioclose
+
+subroutine ext_adios2_set_total_io_time(hndl, timef)
+  use wrf_data_adios2
+  use ext_adios2_support_routines
+  implicit none
+  integer, INTENT(IN)  :: hndl
+  real*8, INTENT(IN) :: timef
+  type(wrf_data_handle), pointer :: DH
+  integer :: ierr
+  call GetDH(hndl,DH,ierr)
+  DH%timings(9) = DH%timings(9) + timef
+end subroutine ext_adios2_set_total_io_time
 
 subroutine ext_adios2_iosync( DataHandle, Status)
   use wrf_data_adios2

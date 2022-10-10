@@ -1144,16 +1144,12 @@ subroutine ext_pnc_set_total_io_time(hndl, timef)
   use wrf_data_pnc
   use ext_pnc_support_routines
   implicit none
-  include 'wrf_status_codes.h'
-#  include "pnetcdf.inc"
   integer, INTENT(IN)  :: hndl
   real*8, INTENT(IN) :: timef
   type(wrf_data_handle), pointer :: DH
   integer :: ierr
-
   call GetDH(hndl,DH,ierr)
   DH%TotalIOTime = DH%TotalIOTime + timef
-
 end subroutine ext_pnc_set_total_io_time
 
 subroutine ext_pnc_open_for_read(DatasetName, Comm1, Comm2, SysDepInfo, DataHandle, Status)

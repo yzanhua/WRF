@@ -100,7 +100,7 @@ module wrf_data_ncpar
     logical                               :: use_netcdf_classic
     logical                               :: Collective
     integer                               :: ind_or_collective
-    real*8                                :: timings(10)
+    real*8                                :: timings(15)
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_ncpar
@@ -217,7 +217,7 @@ subroutine allocHandle(DataHandle,DH,Comm,Status)
   DH%Collective = .TRUE.
   DH%ind_or_collective  = NF_COLLECTIVE
   Status = WRF_NO_ERR
-  do i=1,10
+  do i=1,15
     DH%timings(i) = 0
   enddo
 end subroutine allocHandle
@@ -305,7 +305,7 @@ subroutine deallocHandle(DataHandle, Status)
         return
       endif
       DH%Free      =.TRUE.
-      do i=1,10
+      do i=1,15
         DH%timings(i) = 0
       enddo
     endif
@@ -1573,7 +1573,7 @@ subroutine ext_ncdpar_ioclose(DataHandle, Status)
   integer              ,intent(out) :: Status
   type(wrf_data_handle),pointer     :: DH
   integer                           :: stat
-  real*8                            :: maxtimings(10)
+  real*8                            :: maxtimings(15)
   integer                           :: i
 
   call GetDH(DataHandle,DH,Status)
@@ -1614,10 +1614,10 @@ subroutine ext_ncdpar_ioclose(DataHandle, Status)
     return
   endif
 
-  do i=1, 10
+  do i=1,15
     maxtimings(i) = 0
   enddo
-  CALL MPI_REDUCE(DH%timings, maxtimings, 10, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, stat)
+  CALL MPI_REDUCE(DH%timings, maxtimings, 15, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, stat)
   write(msg,*) "Closing file ", TRIM(DH%FileName)
   call wrf_message(TRIM(msg))
 
@@ -1639,12 +1639,26 @@ subroutine ext_ncdpar_ioclose(DataHandle, Status)
   call wrf_message(TRIM(msg))
   write(msg,'("    NC4PAR: Timing for creating file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(9)
   call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for total_io_without_closing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(10)
+  call wrf_message(TRIM(msg))
 
   CALL deallocHandle( DataHandle, Status )
   DH%Free=.true.
 
   return
 end subroutine ext_ncdpar_ioclose
+
+subroutine ext_ncdpar_set_total_io_time(hndl, timef)
+  use wrf_data_ncpar
+  use ext_ncdpar_support_routines
+  implicit none
+  integer, INTENT(IN)  :: hndl
+  real*8, INTENT(IN) :: timef
+  type(wrf_data_handle), pointer :: DH
+  integer :: ierr
+  call GetDH(hndl,DH,ierr)
+  DH%timings(10) = DH%timings(10) + timef
+end subroutine ext_ncdpar_set_total_io_time
 
 subroutine ext_ncdpar_iosync( DataHandle, Status)
   use wrf_data_ncpar
