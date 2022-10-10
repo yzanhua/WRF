@@ -49,6 +49,9 @@
   integer                               :: stat2
   integer               ,allocatable    :: Buffer(:)
   integer                               :: i
+  logical                               :: use_phdf5
+
+  CALL nl_get_nc4par_use_phdf5(1, use_phdf5)
 
   call GetDH(DataHandle,DH,Status)
   if(Status /= WRF_NO_ERR) then
@@ -103,14 +106,14 @@ IF ( ncdpar_ok_to_put_dom_ti( DataHandle ) ) THEN
       return
     endif
   elseif (DH%FileStatus == WRF_FILE_OPENED_FOR_WRITE .OR. DH%FileStatus == WRF_FILE_OPENED_FOR_UPDATE) then
-    ! stat = NF_REDEF(DH%NCID)
-    stat = 0
-    call netcdf_err(stat,Status)
-    if(Status /= WRF_NO_ERR) then
-      write(msg,*) &
-'NetCDF error in ',__FILE__,' ',ROUTINE_TYPE,', line', __LINE__,' Element ',Element
-      call wrf_debug ( WARN , msg)
-      return
+    if (.not. use_phdf5) then
+      stat = NF_REDEF(DH%NCID)
+      call netcdf_err(stat,Status)
+      if(Status /= WRF_NO_ERR) then
+        write(msg,*) 'NetCDF error in ',__FILE__,' ',ROUTINE_TYPE,', line', __LINE__,' Element ',Element
+        call wrf_debug ( WARN , msg)
+        return
+      endif
     endif
 #ifdef LOG
       allocate(Buffer(Count), STAT=stat)
@@ -147,14 +150,14 @@ IF ( ncdpar_ok_to_put_dom_ti( DataHandle ) ) THEN
       call wrf_debug ( WARN , msg)
       return
     endif
-    ! stat = NF_ENDDEF(DH%NCID)
-    stat = 0
-    call netcdf_err(stat,Status)
-    if(Status /= WRF_NO_ERR) then
-      write(msg,*) &
-'NetCDF error in ',__FILE__,' ',ROUTINE_TYPE,', line', __LINE__,' Element ',Element
-      call wrf_debug ( WARN , msg)
-      return
+    if (.not. use_phdf5) then
+      stat = NF_ENDDEF(DH%NCID)
+      call netcdf_err(stat,Status)
+      if(Status /= WRF_NO_ERR) then
+        write(msg,*) 'NetCDF error in ',__FILE__,' ',ROUTINE_TYPE,', line', __LINE__,' Element ',Element
+        call wrf_debug ( WARN , msg)
+        return
+      endif
     endif
   else
     Status = WRF_ERR_FATAL_BAD_FILE_STATUS  
