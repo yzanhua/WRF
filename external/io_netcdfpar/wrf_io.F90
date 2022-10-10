@@ -1364,6 +1364,7 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   integer                           :: stat
   character (7)                     :: Buffer
   integer                           :: VDimIDs(2)
+  logical                           :: use_phdf5
 
 #ifdef USE_NETCDF4_FEATURES
   integer                           :: create_mode
@@ -1388,9 +1389,14 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   endif
   DH%TimeIndex = 0
   DH%Times     = ZeroDate
-  create_mode = IOR(NF_NETCDF4, NF_MPIIO)
-  create_mode = IOR(create_mode, NF_CLOBBER)
-  create_mode = IOR(create_mode, 262144)
+  ! grid%enable_pnetcdf_bput
+  CALL nl_get_nc4par_use_phdf5(1, use_phdf5)
+  if (use_phdf5) then
+    create_mode = IOR(NF_NETCDF4, NF_CLOBBER)
+    create_mode = IOR(create_mode, 262144)
+  else
+    create_mode = IOR(NF_64BIT_OFFSET, NF_CLOBBER)
+  endif
 
 #ifdef USE_NETCDF4_FEATURES
   if ( DH%use_netcdf_classic ) then
