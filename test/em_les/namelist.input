@@ -20,11 +20,13 @@
  frames_per_outfile                  = 1000, 1000, 1000,
  restart                             = .false.,
  restart_interval_m                  = 60,
- io_form_history                     = 11
- io_form_restart                     = 11
+ nocolons = .true.
+ io_form_history                     = 14
+ io_form_restart                     = 14
  io_form_input                       = 11
  io_form_boundary                    = 11
- enable_pnetcdf_bput                 = .false.
+ enable_pnetcdf_bput                 = .true.
+ nc4par_use_phdf5                    = .false.
  /
 
  &domains
@@ -119,6 +121,12 @@
 
  &ideal
  ideal_case = 9,
+ /
+
+ &namelist_adios2
+ adios2_compression_enable = .false.,
+ adios2_blosc_compressor = "lz4",
+ adios2_numaggregators = 0,
  /
 
  &logging
