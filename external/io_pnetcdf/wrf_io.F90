@@ -734,14 +734,13 @@ VCount(:) = 1
   VCount(NDim+1) = 1
   DH => WrfDataHandles(DataHandle)
 
-  IF (IO=="write" .AND. .NOT.IsPartitioned .AND. DH%BputEnabled) THEN
+  IF (IO=="write" .AND. .NOT.IsPartitioned) THEN
     CALL MPI_COMM_RANK(DH%Comm, MPIRank, Status)
-    if (MPIRank /= 0) return
-  ENDIF
-
-  IF (IO=="write" .AND. .NOT.DH%BputEnabled) THEN
-    ! Add Barrier before non-blocking write
-    call MPI_Barrier(DH%Comm, Status)
+    IF ( DH%BputEnabled .AND. MPIRank /= 0) THEN
+      RETURN
+    ELSE IF (MPIRank /= 0) THEN
+      VCount(:) = 0
+    ENDIF
   ENDIF
 
   select case (FieldType)
