@@ -1,0 +1,58 @@
+# Benchmarking
+This README file shows how to use the [benchmarking branch](https://github.com/yzanhua/WRF/tree/benchmarking).
+This branch supports testing different I/O options by setting different values in namelist.input.
+
+## Namelist.input Configurations
+[This namelist.input](https://github.com/yzanhua/WRF/blob/benchmarking/test/em_les/namelist.input) is 
+a template namelist.input. To enable different I/O options, the necessary changes to the file are as follows.
+If a namelist entry is not mentioned below, then there's no need to change it.
+1. Blocking PnetCDF:
+    ```shell
+    io_form_history                     = 11
+    io_form_restart                     = 11
+    enable_pnetcdf_bput                 = .false.
+    ```
+1. Non-blocking PnetCDF:
+    ```shell
+    io_form_history                     = 11
+    io_form_restart                     = 11
+    enable_pnetcdf_bput                 = .true.
+    ```
+1. NetCDF4 with native HDF5:
+    ```shell
+    io_form_history                     = 13
+    io_form_restart                     = 13
+    nc4par_use_phdf5                    = .true.
+    ```
+1. NetCDF4 with PnetCDF:
+    ```shell
+    io_form_history                     = 13
+    io_form_restart                     = 13
+    nc4par_use_phdf5                    = .false.
+    ```
+1. NetCDF4 with logvol HDF5:
+    ```shell
+    io_form_history                     = 13
+    io_form_restart                     = 13
+    nc4par_use_phdf5                    = .true.
+    ```
+    Then setup environment variables:
+    ```shell
+    source /path-to-log-vol-install-dir/bin/h5lenv.bash
+    ```
+1. NetCDF4 with logvol HDF5 and subfiling enabled:
+    ```shell
+    io_form_history                     = 13
+    io_form_restart                     = 13
+    nc4par_use_phdf5                    = .true.
+    ```
+    Then setup environment variables:
+    ```shell
+    source /path-to-log-vol-install-dir/bin/h5lenv.bash
+    export H5VL_LOG_NSUBFILES=
+    ```
+1. NetCDF4 with adios2:
+    ```shell
+    io_form_history                     = 14
+    io_form_restart                     = 14
+    ```
