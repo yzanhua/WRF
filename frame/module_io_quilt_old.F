@@ -597,6 +597,19 @@ character*120 sysline
 #ifdef GRIB2
       CALL ext_gr2_ioinit( SysDepInfo, ierr)
 #endif
+#ifdef PNETCDF
+  CALL ext_pnc_ioinit  ( SysDepInfo, ierr)
+#endif
+#ifdef PIO
+  CALL ext_pio_ioinit  ( SysDepInfo, ierr )
+#endif
+#ifdef NETCDFPAR
+  CALL ext_ncdpar_ioinit( SysDepInfo, ierr )
+#endif
+#ifdef ADIOS2
+  CALL ext_adios2_ioinit  ( SysDepInfo, ierr )
+#endif
+
 
       call_server_ready = .true. ! = true when the server is ready for a new file
 
@@ -691,6 +704,18 @@ okay_to_w = .false.
 #endif
 #ifdef GRIB2
             CALL ext_gr2_ioexit( Status )
+#endif
+#ifdef PNETCDF
+  CALL ext_pnc_ioexit  ( ierr )
+#endif
+#ifdef PIO
+  CALL ext_pio_ioexit  ( ierr)
+#endif
+#ifdef NETCDFPAR
+  CALL ext_ncdpar_ioexit  ( ierr )
+#endif
+#ifdef ADIOS2
+  CALL ext_adios2_ioexit  ( ierr )
 #endif
             CALL wrf_message ( 'I/O QUILT SERVERS DONE' )
 #if ( DA_CORE != 1 )
@@ -1617,6 +1642,15 @@ okay_to_w = .false.
 #ifdef GRIB2
       CALL ext_gr2_ioinit( SysDepInfo, ierr)
 #endif
+#ifdef PIO
+  CALL ext_pio_ioinit  ( SysDepInfo, ierr )
+#endif
+#ifdef NETCDFPAR
+  CALL ext_ncdpar_ioinit( SysDepInfo, ierr )
+#endif
+#ifdef ADIOS2
+  CALL ext_adios2_ioinit  ( SysDepInfo, ierr )
+#endif
 
       okay_to_commit = .false.
       stored_write_record = .false.
@@ -1702,6 +1736,16 @@ okay_to_w = .false.
 #ifdef GRIB2
             CALL ext_gr2_ioexit( Status )
 #endif
+#ifdef PIO
+  CALL ext_pio_ioexit  ( ierr)
+#endif
+#ifdef NETCDFPAR
+  CALL ext_ncdpar_ioexit  ( ierr )
+#endif
+#ifdef ADIOS2
+  CALL ext_adios2_ioexit  ( ierr )
+#endif
+
             CALL wrf_message ( 'I/O QUILT SERVERS DONE' )
             CALL mpi_finalize(ierr)
             STOP

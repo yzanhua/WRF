@@ -1770,8 +1770,6 @@ subroutine ext_adios2_ioexit(Status)
   type(wrf_data_handle),pointer     :: DH
   integer                           :: i
   integer                           :: stat
-  real*8                    :: timef = 0
-  real*8                    :: maxtime = 0
   
   if(WrfIOnotInitialized) then
     Status = WRF_IO_NOT_INITIALIZED 
@@ -1782,18 +1780,13 @@ subroutine ext_adios2_ioexit(Status)
   do i=1,WrfDataHandleMax
     CALL deallocHandle( i , stat ) 
   enddo
-  timef = MPI_Wtime()
   call adios2_finalize(adios, stat)
-  timef = MPI_Wtime() - timef
-  CALL MPI_REDUCE(timef, maxtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD, error)
   call adios2_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'adios2 error in ext_adios2_ioexit ',__FILE__,', line', __LINE__
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
-  write(msg,'("ADIOS2: Timing for ext_adios2_ioexit = ",F10.5," seconds")'), maxtime
-  call wrf_message(TRIM(msg))
   return
 end subroutine ext_adios2_ioexit
 
