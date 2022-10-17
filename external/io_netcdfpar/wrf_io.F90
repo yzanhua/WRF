@@ -700,7 +700,7 @@ subroutine netcdf_err(err,Status)
 end subroutine netcdf_err
 
 subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
-                     ,FieldType,NCID,VarID,XField,Status)
+                     ,FieldType,NCID,VarID,IsPartitioned,XField,Status)
   use wrf_data_ncpar
   include 'wrf_status_codes.h'
   include 'netcdf.inc'
@@ -713,6 +713,7 @@ subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
   integer                    ,intent(in)    :: FieldType
   integer                    ,intent(in)    :: NCID
   integer                    ,intent(in)    :: VarID
+  logical                    ,intent(in)    :: IsPartitioned
   integer,dimension(*)       ,intent(inout) :: XField
   integer                    ,intent(out)   :: Status
   integer                                   :: TimeIndex
@@ -720,6 +721,7 @@ subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
   integer,dimension(NVarDims)               :: VStart
   integer,dimension(NVarDims)               :: VCount
   type(wrf_data_handle) ,pointer            :: DH
+  integer                                   :: MPIRank
 
   call GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
   if(Status /= WRF_NO_ERR) then
@@ -739,6 +741,14 @@ VCount(:) = 1
   VCount(NDim+1) = 1
 
   DH => WrfDataHandles(DataHandle)
+
+   IF (IO=="write" .AND. .NOT.IsPartitioned) THEN
+    CALL MPI_COMM_RANK(DH%Comm, MPIRank, Status)
+    IF (MPIRank /= 0) THEN
+      VCount(:) = 0
+    ENDIF
+  ENDIF
+
   if(IO == 'write') then
     DH%timings(1) = DH%timings(1) - MPI_Wtime()
   else
@@ -2609,6 +2619,7 @@ subroutine ext_ncdpar_write_field(DataHandle,DateStr,Var,Field,FieldTypeIn,  &
   logical                                      :: NotFound
   ! Local, possibly adjusted, copies of MemoryStart and MemoryEnd
   integer       ,dimension(NVarDims)           :: lMemoryStart, lMemoryEnd
+  logical                                      :: IsPartitioned = .false.
 
 #ifdef USE_NETCDF4_FEATURES
   integer, parameter                           :: cache_size = 32000000
@@ -2912,10 +2923,19 @@ endif
                                             ,XField,x1,x2,y1,y2,z1,z2 &
                                                    ,i1,i2,j1,j2,k1,k2 )
     end if
+
+    IsPartitioned = .false.
+    DO i=1, NDim
+      IF (DomainStart(i) .NE. PatchStart(i) .OR. DomainEnd(i) .NE. PatchEnd(i)) THEN
+        IsPartitioned = .true.
+        EXIT
+      ENDIF
+    ENDDO
+
     StoredStart(1:NDim) = PatchStart(1:NDim)
     call ExtOrder(MemoryOrder,StoredStart,Status)
     call FieldIO('write',DataHandle,DateStr,StoredStart,Length,MemoryOrder, &
-                  FieldType,NCID,VarID,XField,Status)
+                  FieldType,NCID,VarID,IsPartitioned,XField,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'Warning Status = ',Status,' in ',__FILE__,', line', __LINE__ 
       call wrf_debug ( WARN , TRIM(msg))
@@ -3285,7 +3305,7 @@ endif
                                                    ,i1,i2,j1,j2,k1,k2 )
     end if
     call FieldIO('write',DataHandle,DateStr,StoredStart,Length,MemoryOrder, &
-                  FieldType,NCID,VarID,XField,Status)
+                  FieldType,NCID,VarID,.true., XField,Status)
 !    call FieldIO('write',DataHandle,DateStr,Length,MemoryOrder, &
 !                  FieldType,NCID,VarID,XField,Status)
     if(Status /= WRF_NO_ERR) then
@@ -3544,7 +3564,7 @@ subroutine ext_ncdpar_read_field(DataHandle,DateStr,Var,Field,FieldType,Comm,  &
       return
     endif
     call FieldIO('read',DataHandle,DateStr,StoredStart,Length,MemoryOrder, &
-                  FieldType,NCID,VarID,XField,Status)
+                  FieldType,NCID,VarID,.true.,XField,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'Warning Status = ',Status,' in ',__FILE__,', line', __LINE__ 
       call wrf_debug ( WARN , TRIM(msg))
