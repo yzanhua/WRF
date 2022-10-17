@@ -628,7 +628,7 @@ module ext_adios2_support_routines
  end subroutine adios2_err
  
  subroutine FieldIO(IO,DataHandle,DateStr,Starts,Length,MemoryOrder &
-                      ,FieldType,VarID,XField,Status)
+                      ,FieldType,VarID,IsPartitioned,XField,Status)
    use wrf_data_adios2
    use adios2
    include 'wrf_status_codes.h'
@@ -641,6 +641,7 @@ module ext_adios2_support_routines
    character*(*)              ,intent(in)    :: MemoryOrder
    integer                    ,intent(in)    :: FieldType
    type(adios2_variable)      ,intent(in)    :: VarID
+   logical                    ,intent(in)    :: IsPartitioned
    integer,dimension(*)       ,intent(inout) :: XField
    integer                    ,intent(out)   :: Status
    integer                                   :: TimeIndex
@@ -650,6 +651,7 @@ module ext_adios2_support_routines
    integer(kind=8)                           :: TimeIndex_int8
    integer                                   :: stat
    type(wrf_data_handle) ,pointer            :: DH
+   integer                                   :: MPIRank
  
    call GetTimeIndex(IO,DataHandle,DateStr,TimeIndex,Status)
    if(Status /= WRF_NO_ERR) then
@@ -675,6 +677,13 @@ module ext_adios2_support_routines
    VStart(1:NDim) = Starts(1:NDim)
    VCount(1:NDim) = Length(1:NDim)
    DH => WrfDataHandles(DataHandle)
+
+   IF (IO=="write" .AND. .NOT.IsPartitioned) THEN
+    CALL MPI_COMM_RANK(MPI_COMM_WORLD, MPIRank, Status)
+    IF (MPIRank /= 0) THEN
+      VCount(:) = 0
+    ENDIF
+  ENDIF
 
    if(IO == 'write') then
     DH%timings(1) = DH%timings(1) - MPI_Wtime()
@@ -2412,6 +2421,7 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
   integer       ,dimension(NVarDims)           :: lMemoryStart, lMemoryEnd
   character(80),dimension(NVarDims+1)          :: DimNamesOut
   integer                                      :: operation_id
+  logical                                      :: IsPartitioned = .false.
 
   MemoryOrder = trim(adjustl(MemoryOrdIn))
   NullName=char(0)
@@ -2703,10 +2713,19 @@ subroutine ext_adios2_write_field(DataHandle,DateStr,Var,Field,FieldType, &
     call Transpose('write',MemoryOrder,di, Field,l1,l2,m1,m2,n1,n2 &
                                             ,XField,x1,x2,y1,y2,z1,z2 &
                                                    ,i1,i2,j1,j2,k1,k2 )
+
+    IsPartitioned = .false.
+    DO i=1, NDim
+      IF (DomainStart(i) .NE. PatchStart(i) .OR. DomainEnd(i) .NE. PatchEnd(i)) THEN
+        IsPartitioned = .true.
+        EXIT
+      ENDIF
+    ENDDO
+
     StoredStart(1:NDim) = PatchStart(1:NDim)
     call ExtOrder(MemoryOrder,StoredStart,Status)
     call FieldIO('write',DataHandle,DateStr,StoredStart,Length,MemoryOrder, &
-                  FieldType,VarID,XField,Status)
+                  FieldType,VarID,IsPartitioned,XField,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'Warning Status = ',Status,' in ',__FILE__,', line', __LINE__ 
       call wrf_debug ( WARN , TRIM(msg))
@@ -2905,7 +2924,7 @@ subroutine ext_adios2_read_field(DataHandle,DateStr,Var,Field,FieldType,  &
       return
     endif
     call FieldIO('read',DataHandle,DateStr,StoredStart,Length,MemoryOrder, &
-                  FieldType,VarID,XField,Status)
+                  FieldType,VarID,.true.,XField,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) 'Warning Status = ',Status,' in ',__FILE__,', line', __LINE__ 
       call wrf_debug ( WARN , TRIM(msg))
