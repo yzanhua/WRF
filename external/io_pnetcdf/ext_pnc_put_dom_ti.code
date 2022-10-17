@@ -103,7 +103,7 @@ IF ( ncd_ok_to_put_dom_ti( DataHandle ) ) THEN
       return
     endif
   elseif (DH%FileStatus == WRF_FILE_OPENED_FOR_WRITE) then
-    stat = NFMPI_REDEF(DH%NCID)
+    call try_redef(DH, stat)
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) &
@@ -139,14 +139,6 @@ IF ( ncd_ok_to_put_dom_ti( DataHandle ) ) THEN
 #else
       stat = NF_ROUTINE (DH%NCID,NF_GLOBAL,Element,ARGS)
 #endif
-    call netcdf_err(stat,Status)
-    if(Status /= WRF_NO_ERR) then
-      write(msg,*) &
-'NetCDF error in ',__FILE__,' ',ROUTINE_TYPE,', line', __LINE__,' Element ',Element
-      call wrf_debug ( WARN , msg)
-      return
-    endif
-!  stat = NFMPI_ENDDEF(DH%NCID)
     call netcdf_err(stat,Status)
     if(Status /= WRF_NO_ERR) then
       write(msg,*) &

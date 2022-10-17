@@ -107,6 +107,7 @@ module wrf_data_pnc
     real*8                                :: CreateTiming = 0
     real*8                                :: CloseTiming = 0
     integer(kind=8)                       :: BufferSize = 0
+    logical                               :: isDefineMode = .true.
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_pnc
@@ -224,6 +225,7 @@ subroutine allocHandle(DataHandle,DH,Comm,Status)
   DH%Write     =.false.
   DH%first_operation  = .TRUE.
   DH%Collective = .TRUE.
+  DH%isDefineMode = .TRUE.
   Status = WRF_NO_ERR
 end subroutine allocHandle
 
@@ -1054,6 +1056,31 @@ SUBROUTINE PrintMPIInfo(info, FileName)
   enddo
 END SUBROUTINE PrintMPIInfo
 
+subroutine try_redef(DH, stat)
+  use wrf_data_pnc
+  include 'pnetcdf.inc'
+  type(wrf_data_handle),pointer     :: DH
+  integer              ,intent(out)  :: stat
+  stat = 0
+  if (.NOT. DH%isDefineMode) then
+    stat = NFMPI_REDEF(DH%NCID)
+  endif
+  DH%isDefineMode = .true.
+end subroutine try_redef
+
+subroutine try_enddef(DH, stat)
+  use wrf_data_pnc
+  include 'pnetcdf.inc'
+  type(wrf_data_handle),pointer     :: DH
+  integer              ,intent(out)  :: stat
+  stat = 0
+  if (DH%isDefineMode) then
+    stat = NFMPI_ENDDEF(DH%NCID)
+  endif
+  DH%isDefineMode = .false.
+end subroutine try_enddef
+
+
 end module ext_pnc_support_routines
 
 ! ext_pnc_bput_set_buffer_size:
@@ -1633,13 +1660,6 @@ SUBROUTINE ext_pnc_open_for_write_commit(DataHandle, Status)
     call wrf_debug ( WARN , TRIM(msg)) 
     return
   endif
-  stat = NFMPI_ENDDEF(DH%NCID)
-  call netcdf_err(stat,Status)
-  if(Status /= WRF_NO_ERR) then
-    write(msg,*) 'NetCDF error (',stat,') from NFMPI_ENDDEF in ext_pnc_open_for_write_commit ',__FILE__,', line', __LINE__
-    call wrf_debug ( WARN , TRIM(msg))
-    return
-  endif
   DH%FileStatus  = WRF_FILE_OPENED_FOR_WRITE
   DH%first_operation  = .TRUE.
   return
@@ -1727,6 +1747,7 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   DH%TotalIOTime = 0
   DH%BufferSize = 0
   DH%CloseTiming = 0
+  DH%isDefineMode = .true.
 
   CALL deallocHandle( DataHandle, Status )
   DH%Free=.true.
@@ -1817,7 +1838,7 @@ subroutine ext_pnc_redef( DataHandle, Status)
     call wrf_debug ( FATAL , TRIM(msg))
     return
   endif
-  stat = NFMPI_REDEF(DH%NCID)
+  call try_redef(DH, stat)
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -1865,7 +1886,7 @@ subroutine ext_pnc_enddef( DataHandle, Status)
     call wrf_debug ( FATAL , TRIM(msg))
     return
   endif
-  stat = NFMPI_ENDDEF(DH%NCID)
+  call try_enddef(DH, stat)
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__

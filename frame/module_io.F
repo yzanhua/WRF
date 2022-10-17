@@ -138,7 +138,7 @@ END SUBROUTINE SetTotalIOtime
 
 SUBROUTINE wrf_enddef(fid)
   INTEGER, INTENT(IN) :: fid
-  INTEGER :: Hndl, io_form
+  INTEGER :: Hndl, io_form, Status
   LOGICAL :: for_out
   INTEGER, EXTERNAL           :: use_package
 
@@ -146,19 +146,19 @@ SUBROUTINE wrf_enddef(fid)
 
   SELECT CASE (use_package(io_form))
 
-!#ifdef PNETCDF
-!  CASE(io_pnetcdf)
-!    call ext_pnc_set_total_io_time(Hndl, timef)
-!#endif
+#ifdef PNETCDF
+ CASE(io_pnetcdf)
+   call ext_pnc_enddef(Hndl, Status)
+#endif
 
 #ifdef NETCDFPAR
   CASE(io_netcdfpar)
-    CALL ext_ncdpar_enddef( Hndl, timef)
+    CALL ext_ncdpar_enddef( Hndl, Status)
 #endif
 
 !#ifdef ADIOS2
 !  CASE(IO_ADIOS2)
-!    CALL ext_adios2_set_total_io_time ( Hndl, timef )
+!    CALL ext_adios2_set_total_io_time ( Hndl, Status )
 !#endif
 
   ENDSELECT
