@@ -126,8 +126,8 @@ void RSL_LITE_ERROR_DUP1 ( int *me , int *size )
         close(newfd) ;
         return ;
     }
-    fprintf( stdout, "taskid: %d hostname: %s\n",*me,hostname) ;
-    fprintf( stderr, "taskid: %d hostname: %s\n",*me,hostname) ;
+    // fprintf( stdout, "taskid: %d hostname: %s\n",*me,hostname) ;
+    // fprintf( stderr, "taskid: %d hostname: %s\n",*me,hostname) ;
 # if defined( _WIN32 ) 
     }
 # endif

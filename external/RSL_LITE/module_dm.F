@@ -2490,7 +2490,6 @@ SUBROUTINE wrf_termio_dup( comm )
   INCLUDE 'mpif.h'
   CALL mpi_comm_size(comm, ntasks, ierr )
   CALL mpi_comm_rank(comm, mytask, ierr )
-  write(0,*)'starting wrf task ',mytask,' of ',ntasks
   CALL rsl_error_dup1( mytask, ntasks )
 #else
   mytask = 0

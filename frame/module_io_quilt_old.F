@@ -315,10 +315,8 @@ MODULE module_wrf_quilt
         WRITE(mess,'("Not enough tasks to have ",I3," groups of ",I3," I/O tasks. No quilting.")')n_groups,nio
         nio            = 0
         ncompute_tasks = ntasks
-      ELSE                                   
-        WRITE(mess,'("Quilting with ",I3," groups of ",I3," I/O tasks.")')n_groups,nio
+        CALL wrf_message(mess)
       ENDIF                                   
-      CALL wrf_message(mess)
 
       IF ( nio .LT. 0 ) THEN
         nio = 0
@@ -394,12 +392,12 @@ MODULE module_wrf_quilt
 #ifdef PNETCDF_QUILT
       if(poll_servers) then
          poll_servers=.false.
-         call wrf_message('Warning: server polling does not work with pnetcdf_quilt.  Disabled poll_servers.')
+         !call wrf_message('Warning: server polling does not work with pnetcdf_quilt.  Disabled poll_servers.')
       else
 #endif
          if(nio_groups==1) then
             poll_servers=.false.
-            call wrf_message('Server polling is does not work with one io group.  Disabled poll_servers.')
+            !call wrf_message('Server polling is does not work with one io group.  Disabled poll_servers.')
          endif
 #ifdef PNETCDF_QUILT
       endif
