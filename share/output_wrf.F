@@ -1007,6 +1007,12 @@ endif
     ENDIF
 #endif
 
+    IF (.NOT. dryrun) THEN
+      IF ((switch .EQ. history_only) .OR. (switch .EQ. restart_only)) THEN
+        call wrf_enddef(fid)
+      ENDIF
+    ENDIF
+
     IF ( (first_input   .LE. switch .AND. switch .LE. last_input) .OR. &
          (first_history .LE. switch .AND. switch .LE. last_history ) .OR. &
           switch .EQ. restart_only    ) THEN

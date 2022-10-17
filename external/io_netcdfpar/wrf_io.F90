@@ -101,6 +101,7 @@ module wrf_data_ncpar
     logical                               :: Collective
     integer                               :: ind_or_collective
     real*8                                :: timings(15)
+    logical                               :: isDefineMode = .true.
   end type wrf_data_handle
   type(wrf_data_handle),target            :: WrfDataHandles(WrfDataHandleMax)
 end module wrf_data_ncpar
@@ -220,6 +221,7 @@ subroutine allocHandle(DataHandle,DH,Comm,Status)
   do i=1,15
     DH%timings(i) = 0
   enddo
+  DH%isDefineMode = .true.
 end subroutine allocHandle
 
 subroutine deallocHandle(DataHandle, Status)
@@ -308,6 +310,7 @@ subroutine deallocHandle(DataHandle, Status)
       do i=1,15
         DH%timings(i) = 0
       enddo
+      DH%isDefineMode = .true.
     endif
   ENDIF
   Status = WRF_NO_ERR
@@ -950,6 +953,30 @@ subroutine upgrade_filename(FileName)
 
 end subroutine upgrade_filename
 
+subroutine try_redef(DH, stat)
+  use wrf_data_ncpar
+  include 'netcdf.inc'
+  type(wrf_data_handle),pointer     :: DH
+  integer              ,intent(out)  :: stat
+  stat = 0
+  if (.NOT. DH%isDefineMode) then
+    stat = NF_REDEF(DH%NCID)
+  endif
+  DH%isDefineMode = .true.
+end subroutine try_redef
+
+subroutine try_enddef(DH, stat)
+  use wrf_data_ncpar
+  include 'netcdf.inc'
+  type(wrf_data_handle),pointer     :: DH
+  integer              ,intent(out)  :: stat
+  stat = 0
+  if (DH%isDefineMode) then
+    stat = NF_ENDDEF(DH%NCID)
+  endif
+  DH%isDefineMode = .false.
+end subroutine try_enddef
+
 end module ext_ncdpar_support_routines
 
 subroutine TransposeToR4a(IO,MemoryOrder,di, Field,l1,l2,m1,m2,n1,n2 &
@@ -1461,6 +1488,7 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
     DH%DimLengths(i) = NO_DIM
   enddo
   DH%DimNames(1) = 'DateStrLen'
+
   DH%timings(8) = DH%timings(8) - MPI_Wtime()
   stat = NF_DEF_DIM(DH%NCID,DH%DimNames(1),DateStrLen,DH%DimIDs(1))
   DH%timings(8) = DH%timings(8) + MPI_Wtime()
@@ -1550,13 +1578,6 @@ SUBROUTINE ext_ncdpar_open_for_write_commit(DataHandle, Status)
     endif
     write(msg,*) 'Information: NOFILL being set for writing to ',TRIM(DH%FileName)
     call wrf_debug ( WARN , TRIM(msg)) 
-  endif
-  stat = NF_ENDDEF(DH%NCID)
-  call netcdf_err(stat,Status)
-  if(Status /= WRF_NO_ERR) then
-    write(msg,*) 'NetCDF error in ext_ncdpar_open_for_write_commit ',__FILE__,', line', __LINE__
-    call wrf_debug ( WARN , TRIM(msg))
-    return
   endif
   DH%FileStatus  = WRF_FILE_OPENED_FOR_WRITE
   DH%first_operation  = .TRUE.
@@ -1746,7 +1767,7 @@ subroutine ext_ncdpar_redef( DataHandle, Status)
     call wrf_debug ( FATAL , TRIM(msg))
     return
   endif
-  stat = NF_REDEF(DH%NCID)
+  call try_redef(DH, stat)
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__
@@ -1794,7 +1815,7 @@ subroutine ext_ncdpar_enddef( DataHandle, Status)
     call wrf_debug ( FATAL , TRIM(msg))
     return
   endif
-  stat = NF_ENDDEF(DH%NCID)
+  call try_enddef(DH, stat)
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
     write(msg,*) 'NetCDF error in ',__FILE__,', line', __LINE__

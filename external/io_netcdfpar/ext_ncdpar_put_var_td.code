@@ -141,6 +141,8 @@
     VDims(1) = DH%DimIDs(i)
     VDims(2) = DH%DimUnlimID
     DH%timings(6) = DH%timings(6) - MPI_Wtime()
+    write(msg,*) "DEBUG: def_VAR: ",__FILE__,' ', __LINE__
+    call wrf_message (TRIM(msg))
     stat = NF_DEF_VAR(NCID,Name,NF_TYPE,2,VDims,DH%MDVarIDs(NVar))
     DH%timings(6) = DH%timings(6) + MPI_Wtime()
     call netcdf_err(stat,Status)
