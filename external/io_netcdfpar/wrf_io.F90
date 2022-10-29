@@ -1,6 +1,7 @@
 #ifndef USE_NETCDF4_FEATURES
 #define USE_NETCDF4_FEATURES 1
 #endif
+
 !*------------------------------------------------------------------------------
 !*  Standard Disclaimer
 !*
@@ -1405,8 +1406,8 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
 
 #ifdef USE_NETCDF4_FEATURES
   integer                           :: create_mode
-  integer, parameter                :: cache_size = 131072, &
-                                       cache_nelem = 4133, &
+  integer, parameter                :: cache_size = 32, &
+                                       cache_nelem = 37, &
                                        cache_preemption = 100
 #endif
 
@@ -1428,7 +1429,8 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   DH%Times     = ZeroDate
   CALL nl_get_nc4par_use_phdf5(1, use_phdf5)
   if (use_phdf5) then
-    create_mode = IOR(NF_NETCDF4, NF_CLOBBER)
+    create_mode = IOR(NF_NETCDF4, NF_CLASSIC_MODEL)
+    create_mode = IOR(create_mode, NF_CLOBBER)
     create_mode = IOR(create_mode, 262144)
   else
     create_mode = IOR(NF_64BIT_OFFSET, NF_CLOBBER)
@@ -2850,6 +2852,7 @@ endif
        return
      endif
       ENDIF
+
   endif
 #endif
 
