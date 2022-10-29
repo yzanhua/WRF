@@ -1044,14 +1044,11 @@ SUBROUTINE PrintMPIInfo(info, FileName)
     write(msg,*) TRIM(FileName), ": MPI File Info: error: ", value
     call wrf_message(TRIM(msg))
   ENDIF
-  write(msg,*) TRIM(FileName), ": MPI File Info: nkeys = ", nkeys
-  call wrf_message(TRIM(msg))
   do i=0,nkeys-1
     call MPI_INFO_GET_NTHKEY(info, i, key, ierr)
     call MPI_INFO_GET_VALUELEN(info, key, valuelen, flag, ierr)
     call MPI_INFO_GET(info, key, valuelen+1, value, flag, ierr)
-    write(msg,'("MPI File Info: ",I0," key = ",A,", value = ",A)') &
-    i, TRIM(key), TRIM(value)
+    write(msg,'("    MPI_File_Info: ",A,": ",A," = ",A)'), TRIM(FileName), TRIM(key), TRIM(value)
     call wrf_message(TRIM(msg))
   enddo
 END SUBROUTINE PrintMPIInfo
@@ -1555,7 +1552,6 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   timef = MPI_Wtime()
   stat = NFMPI_CREATE(Comm, newFileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), MPI_INFO_NULL, DH%NCID)
   DH%CreateTiming = MPI_Wtime() - timef
-  call PrintMPIInfo(info, newFileName)
 
 ! stat = NFMPI_CREATE(Comm, newFileName, NF_64BIT_OFFSET, info, DH%NCID)
 #else
@@ -1563,7 +1559,6 @@ SUBROUTINE ext_pnc_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataHand
   timef = MPI_Wtime()
   stat = NFMPI_CREATE(Comm, FileName, IOR(NF_CLOBBER, NF_64BIT_OFFSET), MPI_INFO_NULL, DH%NCID)
   DH%CreateTiming = MPI_Wtime() - timef
-  call PrintMPIInfo(info, FileName)
 
 !
 !!!!!!!!!!!!!!! 
@@ -1676,6 +1671,7 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   type(wrf_data_handle),pointer     :: DH
   integer                           :: stat
   integer(kind=8)                   :: IOAmount
+  integer                           :: mpi_info_used
 
   call GetDH(DataHandle,DH,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1721,8 +1717,8 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   write(msg,*) "Closing file ", TRIM(DH%FileName)
   call wrf_message(TRIM(msg))
 
-  call PrintIOAmount(DH)
-  call PrintBufferSize(DH)
+  stat = NFMPI_INQ_FILE_INFO(DH%NCID, mpi_info_used)
+  call PrintMPIInfo(mpi_info_used, DH%FileName)
 
   write(msg,'("    PnetCDF: Time steps for file ",A, " is ", I0)') TRIM(DH%FileName), DH%TimeIndex
   call wrf_message(TRIM(msg))
@@ -1739,6 +1735,8 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
   endif
 
   call PrintTimingMessage(DH)
+  call PrintIOAmount(DH)
+  call PrintBufferSize(DH)
 
   DH%BputEnabled = .false.
   DH%WaitTiming = 0
