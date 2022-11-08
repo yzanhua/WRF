@@ -1719,6 +1719,7 @@ subroutine ext_pnc_ioclose(DataHandle, Status)
 
   stat = NFMPI_INQ_FILE_INFO(DH%NCID, mpi_info_used)
   call PrintMPIInfo(mpi_info_used, DH%FileName)
+  call MPI_INFO_FREE(mpi_info_used, stat)
 
   write(msg,'("    PnetCDF: Time steps for file ",A, " is ", I0)') TRIM(DH%FileName), DH%TimeIndex
   call wrf_message(TRIM(msg))
