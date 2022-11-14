@@ -9,6 +9,7 @@ PROGRAM wrf
                               wrf_run_tl_standalone, wrf_run_ad_standalone
    USE module_state_description, only : dyn_em, dyn_em_tl, dyn_em_ad
 #endif
+  USE module_timing
 
 !<DESCRIPTION>
 ! Main program of WRF model.  Responsible for starting up the model, reading in (and
@@ -37,6 +38,8 @@ PROGRAM wrf
   CALL wrf_adtl_check
 #endif
 
+  CALL start_timing
+
   ! WRF model time-stepping.  Calls integrate().  
 #if ( WRFPLUS == 1 )
   IF  ( config_flags%dyn_opt .EQ. dyn_em ) &
@@ -55,6 +58,8 @@ PROGRAM wrf
 
   ! WRF model clean-up.  This calls MPI_FINALIZE() for DM parallel runs.  
   CALL wrf_finalize
+
+  CALL end_timing ("End to end time")
 
 END PROGRAM wrf
 
