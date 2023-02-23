@@ -2267,6 +2267,10 @@ SUBROUTINE wrf_end_io_timestep (DataHandle, Status)
     CASE ( IO_ADIOS2 )
       CALL ext_adios2_end_io_timestep(Hndl, Status)
 #endif
+#ifdef NETCDFPAR
+      CASE ( IO_NETCDFPAR  )
+        CALL ext_ncdpar_end_io_timestep(Hndl, Status)
+#endif
     CASE DEFAULT
       Status = 0
   END SELECT

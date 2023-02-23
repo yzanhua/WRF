@@ -1429,8 +1429,7 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   DH%Times     = ZeroDate
   CALL nl_get_nc4par_use_phdf5(1, use_phdf5)
   if (use_phdf5) then
-    create_mode = IOR(NF_NETCDF4, NF_CLASSIC_MODEL)
-    create_mode = IOR(create_mode, NF_CLOBBER)
+    create_mode = IOR(NF_NETCDF4, NF_CLOBBER)
     create_mode = IOR(create_mode, 262144)
   else
     create_mode = IOR(NF_64BIT_OFFSET, NF_CLOBBER)
@@ -1672,6 +1671,8 @@ subroutine ext_ncdpar_ioclose(DataHandle, Status)
   call wrf_message(TRIM(msg))
   write(msg,'("    NC4PAR: Timing for creating file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(9)
   call wrf_message(TRIM(msg))
+  write(msg,'("    NC4PAR: Timing for nf_sync (flush) file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(11)
+  call wrf_message(TRIM(msg))
   write(msg,'("    NC4PAR: Timing for total_io_without_closing file ",A,"=",F10.5," seconds")') TRIM(DH%FileName), maxtimings(10)
   call wrf_message(TRIM(msg))
 
@@ -1680,6 +1681,33 @@ subroutine ext_ncdpar_ioclose(DataHandle, Status)
 
   return
 end subroutine ext_ncdpar_ioclose
+
+subroutine ext_ncdpar_end_io_timestep(DataHandle, Status)
+  use wrf_data_ncpar
+  use ext_ncdpar_support_routines
+  implicit none
+  include 'wrf_status_codes.h'
+  include 'netcdf.inc'
+  integer              ,intent(in)  :: DataHandle
+  integer              ,intent(out) :: Status
+  type(wrf_data_handle),pointer     :: DH
+  integer                           :: stat
+  integer                           :: i
+
+  call GetDH(DataHandle,DH,Status)
+
+  DH%timings(11) = DH%timings(11) - MPI_Wtime()
+  stat = NF_SYNC(DH%NCID)
+  DH%timings(11) = DH%timings(11) + MPI_Wtime()
+
+  call netcdf_err(stat,Status)
+  if(Status /= WRF_NO_ERR) then
+    write(msg,*) 'NetCDF error in ext_ncdpar_end_io_timestep ',__FILE__,', line', __LINE__
+    call wrf_debug ( WARN , TRIM(msg))
+    return
+  endif
+  return
+end subroutine ext_ncdpar_end_io_timestep
 
 subroutine ext_ncdpar_set_total_io_time(hndl, timef)
   use wrf_data_ncpar
