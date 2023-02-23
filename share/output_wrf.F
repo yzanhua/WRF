@@ -1037,7 +1037,9 @@ endif
 
       newswitch = switch
       p => grid%head_statevars%next
-      CALL wrf_start_io_timestep(fid, ierr)
+      IF (.NOT. dryrun) THEN
+        CALL wrf_start_io_timestep(fid, ierr)
+      ENDIF
       DO WHILE ( ASSOCIATED( p ) )
         IF ( p%ProcOrient .NE. 'X' .AND. p%ProcOrient .NE. 'Y' ) THEN   ! no I/O for xposed variables
           IF ( p%Ndim .EQ. 0 ) THEN
@@ -1550,7 +1552,9 @@ endif
         ENDIF
         p => p%next
       ENDDO
-      CALL wrf_end_io_timestep(fid, ierr)
+      IF (.NOT. dryrun) THEN
+        CALL wrf_end_io_timestep(fid, ierr)
+      ENDIF
     ELSE
        IF ( switch .EQ. boundary_only ) THEN
          CALL wrf_start_io_timestep(fid, ierr)
