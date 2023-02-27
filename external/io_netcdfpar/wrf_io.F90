@@ -215,7 +215,7 @@ subroutine allocHandle(DataHandle,DH,Comm,Status)
   DH%Write     =.false.
   DH%first_operation  = .TRUE.
   DH%R4OnOutput = .false.
-  DH%nofill = .false.
+  DH%nofill = .true.
   DH%Collective = .TRUE.
   DH%ind_or_collective  = NF_COLLECTIVE
   Status = WRF_NO_ERR
@@ -1403,6 +1403,7 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   character (7)                     :: Buffer
   integer                           :: VDimIDs(2)
   logical                           :: use_phdf5
+  integer                           :: oldmode  ! for nf_set_fill, not used
 
 #ifdef USE_NETCDF4_FEATURES
   integer                           :: create_mode
@@ -1478,6 +1479,15 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+
+  stat = NF_SET_FILL(DH%NCID, NF_NOFILL, oldmode )
+  call netcdf_err(stat,Status)
+  if(Status /= WRF_NO_ERR) then
+    write(msg,*) 'Warning Status = ',Status,' from NF_SET_FILL ',__FILE__,', line', __LINE__
+    call wrf_debug ( WARN , TRIM(msg))
+    return
+  endif
+
   DH%FileStatus  = WRF_FILE_OPENED_NOT_COMMITTED
   DH%FileName    = trim(FileName)
 
