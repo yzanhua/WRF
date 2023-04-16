@@ -743,7 +743,7 @@ VCount(:) = 1
 
   DH => WrfDataHandles(DataHandle)
 
-   IF (IO=="write" .AND. .NOT.IsPartitioned) THEN
+   IF (IO=="write" .AND. .NOT. IsPartitioned) THEN
     CALL MPI_COMM_RANK(DH%Comm, MPIRank, Status)
     IF (MPIRank /= 0) THEN
       VCount(:) = 0
@@ -1404,11 +1404,12 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   integer                           :: VDimIDs(2)
   logical                           :: use_phdf5
   integer                           :: oldmode  ! for nf_set_fill, not used
+  integer                           :: info
 
 #ifdef USE_NETCDF4_FEATURES
   integer                           :: create_mode
-  integer, parameter                :: cache_size = 32, &
-                                       cache_nelem = 37, &
+  integer, parameter                :: cache_size = 67108864, &
+                                       cache_nelem = 4133, &
                                        cache_preemption = 100
 #endif
 
@@ -1437,22 +1438,27 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
   endif
   DH%use_netcdf_classic = .NOT. use_phdf5
 
+  call MPI_INFO_CREATE(info, stat)
+  call MPI_INFO_SET(info, "romio_cb_write", "true", stat)
+  call MPI_INFO_SET(info, "romio_no_indep_rw", "true", stat)
+
+
 #ifdef USE_NETCDF4_FEATURES
   if ( DH%use_netcdf_classic ) then
   write(msg,*) 'output will be in classic NetCDF format'
   call wrf_debug ( WARN , TRIM(msg))
 #ifdef WRFIO_ncdpar_NO_LARGE_FILE_SUPPORT
   DH%timings(9) = DH%timings(9) - MPI_Wtime()
-  stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
+  stat = NF_CREATE_PAR(FileName, create_mode, comm, info, DH%NCID)
   DH%timings(9) = DH%timings(9) + MPI_Wtime()
 #else
   DH%timings(9) = DH%timings(9) - MPI_Wtime()
-  stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
+  stat = NF_CREATE_PAR(FileName, create_mode, comm, info, DH%NCID)
   DH%timings(9) = DH%timings(9) + MPI_Wtime()
 #endif
   else
   DH%timings(9) = DH%timings(9) - MPI_Wtime()
-  stat = NF_CREATE_PAR(FileName, create_mode, comm, MPI_INFO_NULL, DH%NCID)
+  stat = NF_CREATE_PAR(FileName, create_mode, comm, info, DH%NCID)
   DH%timings(9) = DH%timings(9) + MPI_Wtime()
   call netcdf_err(stat,Status)
   if(Status /= WRF_NO_ERR) then
@@ -1479,6 +1485,8 @@ SUBROUTINE ext_ncdpar_open_for_write_begin(FileName,Comm,IOComm,SysDepInfo,DataH
     call wrf_debug ( WARN , TRIM(msg))
     return
   endif
+
+  call MPI_INFO_FREE(info, stat)
 
   stat = NF_SET_FILL(DH%NCID, NF_NOFILL, oldmode )
   call netcdf_err(stat,Status)
@@ -2880,7 +2888,7 @@ endif
       IF ( .true. ) THEN
 
       DH%timings(7) = DH%timings(7) - MPI_Wtime()
-      stat = NF_DEF_VAR_CHUNKING(NCID, VarID, NF_CHUNKED, chunks(1:NDim+1))
+      ! stat = NF_DEF_VAR_CHUNKING(NCID, VarID, NF_CHUNKED, chunks(1:NDim+1))
       DH%timings(7) = DH%timings(7) + MPI_Wtime()
 
      call netcdf_err(stat,Status)
